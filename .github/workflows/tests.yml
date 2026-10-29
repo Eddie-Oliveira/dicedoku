@@ -26,4 +26,11 @@ jobs:
       - name: Import project
         run: ~/godot/godot --headless --path godot --import || true
       - name: Run tests
-        run: ~/godot/godot --headless --path godot --script res://tests/run_tests.gd
+        run: |
+          set -o pipefail
+          ~/godot/godot --headless --path godot --script res://tests/run_tests.gd 2>&1 | tee test-output.txt
+      - name: Publish result as annotations (readable through the API)
+        if: always()
+        run: |
+          grep -E "^Ran [0-9]+ tests" test-output.txt | sed 's/^/::notice title=Tests::/' || echo "::error title=Tests::runner produced no summary"
+          grep -E "FAIL |SCRIPT ERROR|Parse Error" test-output.txt | head -50 | sed 's/^/::error title=Test failure::/' || true

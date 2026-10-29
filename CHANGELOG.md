@@ -25,6 +25,14 @@ Rules
 
 ---
 
+### [2026-10-29] v0.9-dev · CI reports test results as annotations
+areas: CODE
+agent: lead
+- First CI run passed (smoke suite). The run logs can't be downloaded from the agent workspace, so the workflow now publishes the test count as a notice and each failure as an error annotation, readable with `gh api repos/Eddie-Oliveira/dicedoku/check-runs/<id>/annotations`.
+- Files: .github/workflows/tests.yml
+- Tests: CI run on this commit (see Tests annotation)
+- Needs: none
+
 ### [2026-10-29] v0.9-dev · Project split: Godot 4 port, agents, CI
 areas: DESIGN | CODE | ASSETS | DOCS
 agent: lead
