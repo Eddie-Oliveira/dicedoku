@@ -29,6 +29,8 @@ jobs:
         run: |
           set -o pipefail
           timeout 600 ~/godot/godot --headless --path godot --script res://tests/run_tests.gd 2>&1 | tee test-output.txt
+          # Any script error (parse, compile or runtime) fails the run even if no check failed.
+          if grep -q "SCRIPT ERROR" test-output.txt; then echo "Script errors found"; exit 1; fi
       - name: Publish result as annotations (readable through the API)
         if: always()
         run: |

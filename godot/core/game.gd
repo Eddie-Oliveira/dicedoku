@@ -134,7 +134,7 @@ func roll() -> Dictionary:
 	var du := []
 	var dh := []
 	for i in n:
-		var keep := _b(p.dv, i) and p.dv[i] != 0 and (_b(p.dh, i) or _b(p.du, i))
+		var keep: bool = _b(p.dv, i) and p.dv[i] != 0 and (_b(p.dh, i) or _b(p.du, i))
 		dv.append(p.dv[i] if keep else _roll_die(p, i))
 		du.append(_b(p.du, i))
 		dh.append(_b(p.dh, i))
