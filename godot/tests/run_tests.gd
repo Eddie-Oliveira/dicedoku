@@ -23,7 +23,12 @@ func _init() -> void:
 			files.append(f)
 	files.sort()
 	for f in files:
-		var suite = load("res://tests/" + f).new()
+		var script: GDScript = load("res://tests/" + f)
+		if script == null or not script.can_instantiate():
+			current = f
+			fail("could not load (parse error?)")
+			continue
+		var suite = script.new()
 		for m in suite.get_method_list():
 			var n: String = m["name"]
 			if n.begins_with("test_"):

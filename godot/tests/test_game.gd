@@ -224,8 +224,8 @@ func _turn_with(g: Game, id: String) -> bool:
 
 func test_curses(t) -> void:
 	var g := mk(4, 2)
-	var a := g.players[0]
-	var b := g.players[1]
+	var a: PlayerState = g.players[0]
+	var b: PlayerState = g.players[1]
 	# solo: no rival
 	var solo := mk(4, 1)
 	solo.current().gold = 50

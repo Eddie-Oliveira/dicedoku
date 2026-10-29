@@ -8,7 +8,7 @@ env:
 jobs:
   godot-tests:
     runs-on: ubuntu-latest
-    timeout-minutes: 15
+    timeout-minutes: 20
     steps:
       - uses: actions/checkout@v4
       - name: Cache Godot
@@ -28,7 +28,7 @@ jobs:
       - name: Run tests
         run: |
           set -o pipefail
-          ~/godot/godot --headless --path godot --script res://tests/run_tests.gd 2>&1 | tee test-output.txt
+          timeout 600 ~/godot/godot --headless --path godot --script res://tests/run_tests.gd 2>&1 | tee test-output.txt
       - name: Publish result as annotations (readable through the API)
         if: always()
         run: |
