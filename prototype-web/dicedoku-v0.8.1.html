@@ -1,0 +1,216 @@
+<!doctype html>
+<html lang="en"><head><meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+<title>Dicedoku</title>
+<style>
+:root{box-sizing:border-box;padding-top:env(safe-area-inset-top,0px);padding-bottom:env(safe-area-inset-bottom,0px);--bg:#f6f3ee;--fg:#1d1b18;--card:#fff;--ac:#c2410c;--mut:#7a746b;--ln:#cfc8bb;--ok:#15803d;--bad:#b91c1c;--hl:#fde8d4;--gv:#ece6da}
+@media (prefers-color-scheme:dark){:root:not([data-theme="light"]){color-scheme:dark;--bg:#1a1816;--fg:#f0ebe3;--card:#26231f;--ac:#fb923c;--mut:#a39b8e;--ln:#4a443b;--ok:#4ade80;--bad:#f87171;--hl:#4a3220;--gv:#332f29}}
+:root[data-theme="dark"]{color-scheme:dark;--bg:#1a1816;--fg:#f0ebe3;--card:#26231f;--ac:#fb923c;--mut:#a39b8e;--ln:#4a443b;--ok:#4ade80;--bad:#f87171;--hl:#4a3220;--gv:#332f29}
+html,body{margin:0;background:var(--bg);color:var(--fg);font:16px/1.4 system-ui,-apple-system,Segoe UI,sans-serif}
+#app{max-width:520px;margin:0 auto;padding:14px}
+h1{margin:.2em 0;font-size:1.5rem}h1 small{font-size:.8rem;color:var(--mut);font-weight:400}
+.card{background:var(--card);border:1px solid var(--ln);border-radius:12px;padding:12px;margin:10px 0}
+input,select,button{font:inherit;color:inherit}
+input,select{padding:9px;border:1px solid var(--ln);border-radius:8px;background:var(--bg);width:100%;box-sizing:border-box;margin:4px 0}
+.btn{padding:10px 14px;border:1px solid var(--ln);border-radius:8px;background:var(--card);cursor:pointer}
+.btn.p{background:var(--ac);color:#fff;border-color:var(--ac)}.btn:disabled{opacity:.4}
+.row{display:flex;gap:8px;flex-wrap:wrap;align-items:center}.row>*{flex:1}
+.mut{color:var(--mut);font-size:.85rem}
+.grid{display:grid;gap:0;margin:8px auto;max-width:360px;border:3px solid var(--fg);border-radius:6px;overflow:hidden}
+.c{aspect-ratio:1;border:1px solid var(--ln);border-width:0 1px 1px 0;background:var(--card);font-size:1.35rem;cursor:pointer;padding:0}
+.c.g{background:var(--gv);font-weight:700}.c.h{background:var(--hl)}
+.c.R{border-right:3px solid var(--fg)}.c.B{border-bottom:3px solid var(--fg)}
+.dice{display:flex;flex-wrap:wrap;gap:8px;justify-content:center;margin:8px 0}
+.d small{display:block;font-size:.55rem;font-weight:400;color:var(--mut)}.d.x{border-style:dashed;color:var(--mut)}.d{width:52px;height:58px;line-height:1.1;border-radius:10px;border:2px solid var(--fg);background:var(--card);font-size:1.5rem;font-weight:700;cursor:pointer}
+.d.k{border-color:var(--ac);background:var(--hl)}.d.s{outline:3px solid var(--ok)}.d.u{opacity:.25}
+.bar{height:8px;background:var(--gv);border-radius:4px;overflow:hidden}.bar i{display:block;height:100%;background:var(--ac)}
+.nums{display:flex;gap:6px;justify-content:center;margin:2px 0 6px}.nums span{min-width:26px;text-align:center;border:1px solid var(--ln);border-radius:6px;padding:1px 4px;font-size:.9rem}.nums .dn{text-decoration:line-through;color:var(--mut);opacity:.5;border-style:dashed}
+.turn{text-align:center;padding:8px;border-radius:10px;background:var(--gv);margin:6px 0;font-weight:600}.turn.me{background:var(--hl);color:var(--ac)}.turn .btn{padding:4px 10px;margin-left:6px}
+.lb{display:grid;grid-template-columns:1fr auto;gap:2px 10px;margin:6px 0}
+#t{position:fixed;left:0;right:0;bottom:calc(14px + env(safe-area-inset-bottom,0px));text-align:center;pointer-events:none}
+#t span{background:var(--fg);color:var(--bg);padding:8px 14px;border-radius:20px;font-size:.9rem}
+</style></head><body><div id="app">Loading…</div><div id="t"></div>
+<script>
+//LOGIC-START
+// Expansion registries: add new grids (br x bc boxes) and dice here.
+// dice = STARTING faces of the 5 dice. Only DnD types allowed (UPGRADES). Players upgrade dice during play, so 9x9 can start on d6s.
+// Faces above N are dead (unplaceable) except a natural 20, which is a wild placement.
+const UPGRADES=[4,6,8,10,20];
+const GRIDS={4:{br:2,bc:2,givens:6,dice:[4,4,4,4,4]},6:{br:2,bc:3,givens:14,dice:[6,6,6,6,6]},9:{br:3,bc:3,givens:34,dice:[6,6,6,6,6]}};
+function rng(a){return()=>{a|=0;a=a+0x6D2B79F5|0;let t=Math.imul(a^a>>>15,1|a);t=t+Math.imul(t^t>>>7,61|t)^t;return((t^t>>>14)>>>0)/4294967296}}
+function shuf(a,r){a=a.slice();for(let i=a.length-1;i>0;i--){const j=Math.floor(r()*(i+1));[a[i],a[j]]=[a[j],a[i]]}return a}
+function ok(g,N,br,bc,y,x,v){for(let k=0;k<N;k++)if(g[y*N+k]===v||g[k*N+x]===v)return false;
+ const y0=y-y%br,x0=x-x%bc;for(let a=0;a<br;a++)for(let b=0;b<bc;b++)if(g[(y0+a)*N+x0+b]===v)return false;return true}
+function count(g,N,br,bc,lim){const i=g.indexOf(0);if(i<0)return 1;let n=0;const y=i/N|0,x=i%N;
+ for(let v=1;v<=N&&n<lim;v++)if(ok(g,N,br,bc,y,x,v)){g[i]=v;n+=count(g,N,br,bc,lim-n);g[i]=0}return n}
+function gen(N,seed){const{br,bc,givens}=GRIDS[N],r=rng(seed),rg=n=>[...Array(n).keys()];
+ const rows=shuf(rg(N/br),r).flatMap(g=>shuf(rg(br),r).map(x=>g*br+x));
+ const cols=shuf(rg(N/bc),r).flatMap(g=>shuf(rg(bc),r).map(x=>g*bc+x));
+ const d=shuf(rg(N),r).map(x=>x+1),sol=[];
+ for(const y of rows)for(const x of cols)sol.push(d[(bc*(y%br)+Math.floor(y/br)+x)%N]);
+ const puz=sol.slice();
+ for(const i of shuf(rg(N*N),r)){if(puz.filter(Boolean).length<=givens)break;const v=puz[i];puz[i]=0;if(count(puz.slice(),N,br,bc,2)!==1)puz[i]=v}
+ return{sol,puz}}
+function combo(dv,N){dv=dv.filter(v=>v>0).slice(0,5);const c={};dv.forEach(v=>c[v]=(c[v]||0)+1);
+ if(Math.max(...Object.values(c))>=5)return 2;
+ const u=[...new Set(dv.filter(v=>v<=N))].sort((a,b)=>a-b);let best=1,run=1;
+ for(let i=1;i<u.length;i++){run=u[i]===u[i-1]+1?run+1:1;best=Math.max(best,run)}
+ return best>=4||(N>=9&&Math.max(...Object.values(c))>=3)?1:0}
+//LOGIC-END
+const $=s=>document.querySelector(s),esc=s=>String(s).replace(/[&<>"]/g,c=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;'}[c]));
+let U=null,joining=false,buying=false,db,uid,code,game,me,G,players={},fx=[],tgt=null,wasMine=null,sel=null,upm=false,name='',q=Promise.resolve(),subs=[];
+try{name=localStorage.getItem('dd-name')||''}catch(e){}
+function toast(m){$('#t').innerHTML='<span>'+esc(m)+'</span>';setTimeout(()=>$('#t').innerHTML='',2600)}
+const pdoc=()=>db.doc('games/'+code+'/players/'+uid);
+// Platform calls can fail transiently ('unavailable', a timeout). Retry those up to 4 times; fail fast on permanent codes.
+const FATAL=['invalid_argument','quota_exceeded','revoked','not_granted','capability_disabled','capability_removed','transform_error'];
+const wait=ms=>new Promise(r=>setTimeout(r,ms));
+async function tryDb(f){for(let n=1;;n++){try{return await f()}catch(e){if(n>=4||FATAL.includes(e&&e.code))throw e;await wait(400*n+Math.random()*600)}}}
+const emsg=e=>(e&&e.code?e.code+': ':'')+((e&&e.message)||e);
+async function canWrite(){try{return U?await U.can('data.write'):null}catch(e){return null}}
+const NOWRITE='You can only watch: ask the host to share the game with you as Editor';
+// Live data: players, the game doc (whose turn: cur, ts) and fx (curses in flight). Each listener reconnects itself.
+function listen(ref,f){const c=code;let un=()=>{};const go=()=>{un=ref.onSnapshot(f,e=>{if(e&&e.code==='unavailable'&&code===c)setTimeout(()=>{if(code===c)go()},1500+Math.random()*1000);else toast('Live updates stopped: '+emsg(e))})};go();return()=>un()}
+function sub(){subs.forEach(f=>f());const g='games/'+code;
+ subs=[listen(db.collection(g+'/players'),s=>{setPlayers(s.docs);turnCheck()}),
+  listen(db.doc(g),s=>{if(s.exists)applyGame(s.data());turnCheck()}),
+  listen(db.collection(g+'/fx'),s=>{fx=s.docs.map(d=>Object.assign({id:d.id},d.data()));render()})]}
+// Turn changes carry a counter (tn); an older copy of the game doc never overrides a newer one.
+function applyGame(d){if((d.tn||0)>=(game.tn||0))Object.assign(game,d)}
+const setPlayers=docs=>{players={};docs.forEach(d=>players[d.id]=d.data())};
+// Backup sync: re-read the room every 8 s in case a live listener stalls (reads only).
+async function poll(){if(!code||!db)return;const c=code;try{const[g,ps]=await Promise.all([db.doc('games/'+c).get(),db.collection('games/'+c+'/players').get()]);if(code!==c)return;if(g.exists)applyGame(g.data());setPlayers(ps.docs);turnCheck()}catch(e){}}
+function save(p){Object.assign(me,p);q=q.then(()=>tryDb(()=>pdoc().update(p))).catch(e=>toast('Save failed: '+emsg(e)));render()}
+const filled=g=>g.filter(Boolean).length;
+const dfs=()=>me.df||GRIDS[game.size].dice;
+const kindOf=i=>(me.dk||[])[i]||'std';
+const kb=i=>({mirror:'🪞',safe:'🛡',golden:'🪙',loaded:'🎯'}[kindOf(i)]||'');
+// Turns: players act one at a time in join order. game.cur = uid whose turn it is; only that player passes it on (no write races).
+const SKIPMS=120000;
+const pmap=()=>{const P=Object.assign({},players);if(me)P[uid]=me;return P};
+const order=()=>Object.entries(pmap()).sort((a,b)=>(a[1].joined||0)-(b[1].joined||0)||(a[0]<b[0]?-1:1)).map(([k])=>k);
+const active=()=>{const P=pmap();return order().filter(k=>!P[k].done&&!P[k].lost)};
+const pn=k=>(pmap()[k]||{}).name||'Another player';
+function nextAfter(id){const all=order(),A=active().filter(k=>k!==id);if(!A.length)return id;const i=all.indexOf(id);for(let n=1;n<=all.length;n++){const k=all[(i+n)%all.length];if(A.includes(k))return k}return A[0]}
+function curId(){const A=active();if(game.cur&&!order().includes(game.cur))return game.cur; // a player this screen hasn't loaded yet: wait for them
+ if(!A.length)return null;if(A.includes(game.cur))return game.cur;return game.cur&&order().includes(game.cur)?nextAfter(game.cur):A[0]}
+const myTurn=()=>!!me&&curId()===uid;
+const turnOk=()=>{if(myTurn())return true;toast('Wait for your turn');return false};
+function turnCheck(){const m=myTurn();if(m&&wasMine===false&&active().length>1)toast('Your turn!');wasMine=m;render()}
+async function setCur(nx){game.cur=nx;game.ts=Date.now();game.tn=(game.tn||0)+1;const tn=game.tn;try{await tryDb(()=>db.doc('games/'+code).update({cur:nx,ts:game.ts,tn}))}catch(e){toast('Could not pass the turn: '+emsg(e))}render()}
+// Re-read the player list from the server first, so a stale list can never hand the turn back to me.
+async function passTurn(){try{const ps=await tryDb(()=>db.collection('games/'+code+'/players').get());setPlayers(ps.docs)}catch(e){}
+ const nx=nextAfter(uid);if(nx===uid&&game.cur===uid)return;return setCur(nx)}
+function skip(){const cu=curId();if(!cu||cu===uid||Date.now()-(game.ts||game.created||0)<SKIPMS)return;const nx=nextAfter(cu);if(nx===cu){toast('No other player can take the turn');return}toast('Skipped '+pn(cu));return setCur(nx)}
+// Merchant. Dice abilities: mirror (also places N+1-v), safe (a miss is free), golden (+2 gold per hit), loaded (rolls twice, keeps a useful face).
+// Curses (x) are sent to a rival as fx docs and hit their next first roll; a Ward blocks one.
+const WHET=3,MAXP=9,MAXH=5,MAXMIS=3;
+const CURSES={hex:'Hex',blight:'Blight',shackle:'Shackle'};
+const SHOP=[{id:'d4',n:'Extra d4',c:2,d:{f:4}},{id:'d6',n:'Extra d6',c:4,d:{f:6}},{id:'d8',n:'Extra d8',c:6,d:{f:8}},{id:'d10',n:'Extra d10',c:8,d:{f:10}},
+{id:'mir',n:'Mirror d6: also places N+1−v',c:6,d:{f:6,k:'mirror'}},{id:'safe',n:'Safe d6: a miss costs no mistake',c:5,d:{f:6,k:'safe'}},
+{id:'gold',n:'Golden d6: +2 gold per hit',c:5,d:{f:6,k:'golden'}},{id:'load',n:'Loaded d6: rolls twice, keeps a useful face',c:7,d:{f:6,k:'loaded'}},
+{id:'hint',n:'Hint scroll: +1 hint',c:6},{id:'roll',n:'Extra roll this turn',c:3}];
+const VERSUS=[{id:'hex',n:'Hex: rival loses 1 roll next turn',c:4,x:'hex'},{id:'blight',n:'Blight: 2 dice of rival’s next roll come up 1',c:5,x:'blight'},
+{id:'shackle',n:'Shackle: rival can hold only 1 die next turn',c:4,x:'shackle'},{id:'ward',n:'Ward: blocks the next curse aimed at you',c:3}];
+function offers(){const r=rng(game.seed*31+me.turn);return[{id:'whet',n:'Whetstone: upgrade a die one step',c:WHET},shuf(VERSUS,r)[0],...shuf(SHOP,r).slice(0,1+(r()*3|0))]}
+function rollDie(i){const f=dfs()[i],r=()=>1+Math.random()*f|0;let v=r();
+ if(kindOf(i)==='loaded'){const w=r(),need=x=>(x===20||(f===10&&x===10))?me.grid.includes(0):(x<=game.size&&me.grid.some((c,j)=>!c&&G.sol[j]===x));if(!need(v)&&need(w))v=w}return v}
+async function buy(id){if(buying||!turnOk()||me.done||me.lost)return;const it=offers().find(o=>o.id===id),g=me.gold||0,bt=me.bt||[];
+ if(!it||g<it.c){toast('Not enough gold');return}
+ if(id!=='whet'&&bt.includes(id)){toast('Sold out this turn');return}
+ if(id==='roll'&&me.lk){toast('Dice are locked');return}
+ if(id==='whet'){upm=!upm;toast(upm?'Tap a die to upgrade it':'Cancelled');render();return}
+ const p={gold:g-it.c,bt:[...bt,id]};
+ if(it.x){const opp=active().filter(k=>k!==uid);if(!opp.length){toast('No rival to curse');return}const to=opp.includes(tgt)?tgt:nextAfter(uid);
+  const ref=db.collection('games/'+code+'/fx').doc();buying=true;
+  try{await tryDb(()=>ref.set({to,from:uid,fromName:me.name,k:it.x,at:Date.now()}))}catch(e){toast('Curse failed: '+emsg(e));return}finally{buying=false}
+  toast(CURSES[it.x]+' sent to '+pn(to));save(p);return}
+ if(it.d){const F=dfs();if(F.length>=MAXP){toast('Dice pool is full ('+MAXP+')');return}
+  p.df=[...F,it.d.f];p.dk=[...(me.dk||F.map(()=>'std')),it.d.k||'std'];
+  if(me.dv.length){p.dv=[...me.dv,0];p.du=[...me.du,false];p.dh=[...me.dh,false]}}
+ else if(id==='hint')p.hints=me.hints+1;else if(id==='roll')p.rolls=me.rolls+1;else if(id==='ward')p.ward=(me.ward||0)+1;
+ toast('Bought: '+it.n.split(':')[0]);save(p)}
+function shopHtml(){if(me.lost)return'<div class="card"><b>Game over:</b> 3 mistakes, you lost.</div>';if(me.done)return'';
+ const g=me.gold||0,bt=me.bt||[],M=myTurn(),opp=active().filter(k=>k!==uid),O=offers();if(tgt&&!opp.includes(tgt))tgt=null;const T=tgt||nextAfter(uid);
+ const pickT=opp.length>1&&O.some(o=>o.x)?`<div class="row" style="margin-top:6px"><span class="mut" style="flex:1">Curse target</span><select id="tg" style="flex:2">${opp.map(k=>`<option value="${esc(k)}"${k===T?' selected':''}>${esc(pn(k))}</option>`).join('')}</select></div>`:'';
+ return`<div class="card"><b>Merchant</b> <span class="mut">· new stock every turn${M?'':' · shop on your turn'}${upm?' · tap a die to upgrade it':''}</span>${pickT}`+O.map(o=>{const sold=o.id!=='whet'&&bt.includes(o.id),off=!M||g<o.c||sold||(o.id==='roll'&&me.lk)||(o.x&&!opp.length);
+  return`<div class="row" style="margin-top:6px"><div style="flex:3">${o.x?'😈 ':''}${esc(o.n)}${o.x&&opp.length===1?' → '+esc(pn(opp[0])):''}${o.x&&!opp.length?' (no rivals)':''}</div><button class="btn${!off?' p':''}" data-a="buy" data-id="${o.id}" ${off?'disabled':''}>${sold?'Sold':o.c+'g'}</button></div>`}).join('')+'</div>'}
+function finish(grid,extra){const done=grid.every(Boolean);return Object.assign({grid},extra,done?{done:true,fin:Date.now()}:{})}
+async function create(){if(joining)return;if(await canWrite()===false){toast(NOWRITE);return}const N=+$('#sz').value,c=[...Array(5)].map(()=>'ABCDEFGHJKLMNPQRSTUVWXYZ'[Math.random()*24|0]).join('');
+ try{await tryDb(()=>db.doc('games/'+c).set({size:N,seed:Math.random()*2**31|0,host:uid,dice:'classic',created:Date.now(),ts:Date.now()}));await join(c)}catch(e){toast('Could not create ('+emsg(e)+'). Try again.')}}
+async function join(c){if(joining)return;c=c.trim().toUpperCase();if(!c){toast('Enter a room code');return}name=($('#nm')?.value||name).trim().slice(0,16)||'Player';try{localStorage.setItem('dd-name',name)}catch(e){}
+ if(await canWrite()===false){toast(NOWRITE);return}
+ joining=true;toast('Joining '+c+'…');
+ try{const g=await tryDb(()=>db.doc('games/'+c).get());if(!g.exists){toast('Game '+c+' not found: check the code');return}
+  game=g.data();G=gen(game.size,game.seed);code=c;location.hash=c;players={};fx=[];wasMine=null;tgt=null;
+  const m=await tryDb(()=>pdoc().get());
+  if(m.exists){const d=m.data();await tryDb(()=>pdoc().update({name}));me=d;me.name=name}
+  else{const fresh={name,grid:G.puz.slice(),dv:[],du:[],dh:[],rolls:3,turn:1,mis:0,hints:0,done:false,fin:0,joined:Date.now()};await tryDb(()=>pdoc().set(fresh));me=fresh}
+  sub();render()}catch(e){me=null;code=null;toast(e&&e.code==='invalid_argument'?NOWRITE:'Join failed ('+emsg(e)+'). Tap Join to try again.');render()}finally{joining=false}}
+// Curses aimed at me are applied once, on the first roll of my turn (fxi remembers applied ids).
+function applyFx(){const done=me.fxi||[],mine=fx.filter(f=>f.to===uid&&!done.includes(f.id)).sort((a,b)=>(a.at||0)-(b.at||0));
+ const r={ids:mine.map(f=>f.id),ward:me.ward||0,hex:0,bl:0,sh:0},msg=[];
+ for(const f of mine){const n=CURSES[f.k]||'Curse',who=f.fromName||'a rival';if(r.ward>0){r.ward--;msg.push('Ward blocked '+n+' from '+who);continue}
+  if(f.k==='hex')r.hex++;else if(f.k==='blight')r.bl+=2;else if(f.k==='shackle')r.sh=1;msg.push(n+' from '+who+'!')}
+ mine.forEach(f=>tryDb(()=>db.doc('games/'+code+'/fx/'+f.id).delete()).catch(()=>{}));
+ if(msg.length)toast(msg.join(' · '));return r}
+function roll(){if(!turnOk()||me.rolls<1||me.done||me.lost||me.lk)return;const f=dfs(),p={};let rolls=me.rolls,bl=0;
+ if(!me.fxd){const e=applyFx();p.fxd=true;if(e.ids.length){p.fxi=[...(me.fxi||[]),...e.ids].slice(-40);p.ward=e.ward;rolls=Math.max(1,rolls-e.hex);bl=e.bl;p.shk=e.sh}}
+ const dv=f.map((_,i)=>me.dv[i]&&(me.dh[i]||me.du[i])?me.dv[i]:rollDie(i));
+ if(bl)shuf(f.map((_,i)=>i).filter(i=>!(me.dh[i]||me.du[i])),Math.random).slice(0,bl).forEach(i=>dv[i]=1);
+ sel=null;Object.assign(p,{dv,rolls:rolls-1,lk:rolls-1<1,du:f.map((_,i)=>!!me.du[i]),dh:f.map((_,i)=>!!me.dh[i])});save(p)}
+function lock(){if(!turnOk()||!me.dv.length||me.lk||me.done||me.lost)return;sel=null;toast('Dice locked');save({lk:true})}
+function hold(i){if(!turnOk()||me.lost||me.lk||me.du[i]||!me.dv[i]||me.rolls===0)return;const dh=me.dh.slice(),cap=me.shk||MAXH;
+ if(!dh[i]){if(useless(i)){toast('Number complete: reroll it');return}if(dh.filter(Boolean).length>=cap){toast(me.shk?'Shackled: hold only '+cap:'Hold limit: '+cap+' dice');return}}
+ dh[i]=!dh[i];save({dh})}
+function pick(i){if(me.lost||me.done||!turnOk())return;if(!me.lk){toast('Lock your dice first');return}if(!me.dv.length||!me.dv[i]||me.du[i])return;if(dead(me.dv[i],i)){toast('Dead face: cannot be placed');return}if(useless(i)){toast('Number complete: cannot be placed');return}sel=sel===i?null:i;render()}
+function cell(i){if(me.done||me.lost||sel===null||me.grid[i]||!myTurn())return;const v=me.dv[sel],grid=me.grid.slice(),du=me.du.slice();du[sel]=true;let mis=me.mis,plc=me.plc||0,gold=me.gold||0;const k=kindOf(sel);
+ if(wild(v,sel)||(v<=game.size&&(v===G.sol[i]||(k==='mirror'&&game.size+1-v===G.sol[i])))){grid[i]=G.sol[i];plc++;gold+=1+(k==='golden'?2:0);if(wild(v,sel))toast('Wild! Placed anywhere')}else if(k==='safe')toast('Safe die: no mistake');else{mis++;toast('Wrong spot: +1 mistake')}sel=null;if(mis>=MAXMIS)toast('Third mistake: game over');
+ const p=finish(grid,{du,mis,plc,gold,lost:mis>=MAXMIS});save(p);if(p.done||p.lost)passTurn()}
+function endTurn(){if(!turnOk()||!me.dv.length||me.done||me.lost)return;const b=combo(me.dv,game.size);const pity=me.du.some(Boolean)?0:1;if(b)toast('Combo! +'+b+' hint'+(b>1?'s':''));else if(pity)toast('No placements: the merchant tips you 1 gold');
+ sel=null;upm=false;save({hints:me.hints+b,gold:(me.gold||0)+pity,turn:me.turn+1,bt:[],lk:false,fxd:false,shk:0,dv:[],du:[],dh:[],rolls:3});passTurn()}
+function hint(){if(!turnOk()||me.hints<1||me.done||me.lost)return;if(!me.lk||sel===null){toast('Lock dice, select a die, then use a hint');return}
+ const v=me.dv[sel],k=kindOf(sel),N=game.size,c=wild(v,sel)?me.grid.findIndex(x=>!x):me.grid.findIndex((x,j)=>!x&&(G.sol[j]===v||(k==='mirror'&&N+1-v===G.sol[j])));
+ if(c<0){toast('That die fits nowhere');return}
+ save({hints:me.hints-1});cell(c)}
+const score=p=>p.turn+2*p.mis;
+// wild: natural 20 on a d20, or a 0 on a d10 (stored as 10). dead: above the grid size and not wild.
+const wild=(v,i)=>v===20||(v===10&&dfs()[i]===10);
+const dead=(v,i)=>v>game.size&&!wild(v,i);
+const cnt=v=>me.grid.filter(x=>x===v).length;
+const useless=i=>{const v=me.dv[i],N=game.size;if(!v||wild(v,i)||v>N)return false;return cnt(v)===N&&!(kindOf(i)==='mirror'&&cnt(N+1-v)<N)};
+function nums(){const N=game.size;return'<div class="nums">'+[...Array(N).keys()].map(k=>`<span class="${cnt(k+1)===N?'dn':''}">${k+1}</span>`).join('')+'</div>'}
+function upgrade(i){upm=false;if(!myTurn()){render();return}const F=dfs(),k=UPGRADES.indexOf(F[i]);if((me.gold||0)<WHET){render();return}if(k>=UPGRADES.length-1){toast('Already a d20');render();return}const df=F.slice();df[i]=UPGRADES[k+1];toast('d'+F[i]+' → d'+df[i]);save({df,gold:me.gold-WHET})}
+function board(){const N=game.size,{br,bc}=GRIDS[N],s=sel!==null?me.dv[sel]:0;let h='';
+ me.grid.forEach((v,i)=>{const y=i/N|0,x=i%N,g=G.puz[i],hl=s&&!v&&ok(me.grid,N,br,bc,y,x,s);
+  h+=`<button class="c${g?' g':''}${hl?' h':''}${(x+1)%bc===0&&x<N-1?' R':''}${(y+1)%br===0&&y<N-1?' B':''}" data-a="cell" data-i="${i}">${v||''}</button>`});
+ return`<div class="grid" style="grid-template-columns:repeat(${N},1fr)">${h}</div>`}
+function lb(){const N=game.size,P=pmap(),cu=curId();const L=Object.entries(P);
+ L.sort((a,b)=>(!!a[1].lost-!!b[1].lost)||(b[1].done-a[1].done)||(a[1].done?score(a[1])-score(b[1])||a[1].fin-b[1].fin:filled(b[1].grid)-filled(a[1].grid)));
+ return L.map(([k,p])=>{const f=filled(p.grid),cz=fx.filter(x=>x.to===k&&!(p.fxi||[]).includes(x.id)).length;
+  return`<div><b>${k===cu?'▶ ':''}${esc(p.name)}${k===uid?' (you)':''}</b>${p.done?' 🏁':''}${p.lost?' ☠':''}${cz?' 😈'+cz:''}<div class="bar"><i style="width:${100*f/N/N}%"></i></div>${k===cu&&k!==uid&&p.dv&&p.dv.length?`<div class="mut">🎲 ${p.dv.map(v=>v||'–').join(' ')}${p.lk?' 🔒':''}</div>`:''}</div><div class="mut">T${p.turn} · ✗${p.mis}${p.done?' · score '+score(p):''}</div>`}).join('')}
+function render(){const a=$('#app');
+ if(!db){a.innerHTML='<h1>Dicedoku</h1><p>This game needs a signed-in Claude viewer with edit/contributor access.</p>';return}
+ if(!code||!me){a.innerHTML=`<h1>Dicedoku <small>v0.8.1</small></h1><div class="card"><label class="mut">Your name</label><input id="nm" maxlength="16" value="${esc(name)}">
+  <label class="mut">New game grid</label><select id="sz">${Object.keys(GRIDS).map(n=>`<option value="${n}">${n}×${n}</option>`)}</select><button class="btn p" data-a="create" style="width:100%;margin-top:6px">Create game</button></div>
+  <div class="card"><label class="mut">Join with code</label><div class="row"><input id="cd" maxlength="5" value="${esc(location.hash.slice(1))}" style="text-transform:uppercase"><button class="btn" data-a="join">Join</button></div></div>
+  <div class="card mut">Race to fill your grid, taking turns in join order. On your turn: roll all your dice (up to 3 rolls; tap dice to hold them between rolls, max 5 held), then lock them (automatic after the last roll). Locked dice can’t be rerolled or changed. Then tap a die and a cell: it only counts if that value belongs there. Wrong = mistake, and 3 mistakes means you lose. Highlighted cells show where a value is legal. End turn passes to the next player; an idle player can be skipped after 2 minutes. Score = turns + 2×mistakes (lower wins). Yahtzee = 2 hints, 4+ in a row = 1 hint (combos use your first five dice; on 9×9 a triple also earns a hint). A hint places your selected, locked die for free in a correct cell. Faces above the grid size are dead. Wilds fill any cell: a natural 20 on a d20 and a 0 on a d10. Struck-through numbers are complete, so reroll those dice. Each correct placement earns 1 gold, and a turn with no placements earns 1 gold. The Merchant (new stock every turn) sells Whetstones (upgrade a die d4→d6→d8→d10→d20), extra dice (pool up to 9) with abilities (Mirror, Safe, Golden, Loaded), and curses that hit a rival’s next roll: Hex (−1 roll), Blight (2 dice come up 1), Shackle (hold only 1 die). A Ward blocks the next curse aimed at you. 9×9 starts on d6s, so buy Whetstones to reach 7, 8 and 9.</div>`;return}
+ const t=me.dv.length,M=myTurn(),cu=curId(),stale=!M&&cu&&cu!==uid&&Date.now()-(game.ts||game.created||0)>=SKIPMS,dis=!M||me.done||me.lost;
+ const inc=fx.filter(f=>f.to===uid&&!(me.fxi||[]).includes(f.id)),incTxt=inc.map(f=>(CURSES[f.k]||'Curse')+' from '+(f.fromName||'a rival')).join(', ');
+ const banner=me.done||me.lost?'':M?`<div class="turn me">🎲 Your turn${inc.length&&!me.fxd?' · 😈 '+esc(incTxt)+' will hit your first roll':''}</div>`
+  :`<div class="turn">⏳ ${cu?esc(pn(cu))+'’s turn':'Waiting'}${stale?` <button class="btn" data-a="skip">Skip</button>`:''}${inc.length?' · 😈 '+esc(incTxt)+' waiting for you':''}</div>`;
+ const dice=dfs().map((_,i)=>{const v=me.dv[i]||0;return`<button class="d${me.dh[i]&&!me.lk?' k':''}${me.du[i]?' u':''}${sel===i?' s':''}${dead(v,i)||useless(i)?' x':''}" data-a="die" data-i="${i}">${v?(v===10&&dfs()[i]===10?'0':v):'–'}<small>d${dfs()[i]}${kb(i)}${useless(i)?' ✓':wild(v,i)?' ★':''}</small></button>`}).join('');
+ a.innerHTML=`<h1>Dicedoku <small>room ${code} · ${game.size}×${game.size}</small></h1>${banner}${board()}${nums()}
+  <div class="card"><div class="dice">${dice}</div>
+  <div class="mut" style="text-align:center">${!M?'Watch the board until your turn':me.lk?'Placing: tap a die, then a cell':t?'Rolling: tap dice to hold, then Roll again or Lock':'Roll to start your turn'} · Rolls left ${me.rolls} · Turn ${me.turn} · ✗${me.mis}/${MAXMIS} · Hints ${me.hints} · Gold ${me.gold||0} · Pool ${dfs().length}${me.ward?' · Wards '+me.ward:''}${me.shk&&M?' · Shackled (hold '+me.shk+')':''}</div>
+  <div class="row" style="margin-top:8px"><button class="btn p" data-a="roll" ${dis||me.rolls<1||me.lk?'disabled':''}>Roll</button><button class="btn" data-a="lock" ${dis||!t||me.lk?'disabled':''}>Lock dice</button><button class="btn" data-a="end" ${dis||!t?'disabled':''}>End turn</button><button class="btn" data-a="hint" ${dis||me.hints<1||!me.lk||sel===null?'disabled':''}>Hint</button></div></div>
+  ${me.done?`<div class="card"><b>Finished!</b> Score ${score(me)} (turns ${me.turn}, mistakes ${me.mis})</div>`:''}
+  ${shopHtml()}<div class="card"><b>Players</b><div class="lb">${lb()}</div><div class="mut">Share this page’s link plus code <b>${code}</b> · sync #${game.tn||0}</div><button class="btn" data-a="leave">Leave room</button></div>`}
+document.addEventListener('click',e=>{const b=e.target.closest('[data-a]');if(!b)return;const a=b.dataset.a,i=+b.dataset.i;
+ if(a==='create')create();else if(a==='join')join($('#cd').value);else if(a==='roll')roll();else if(a==='lock')lock();else if(a==='end')endTurn();else if(a==='hint')hint();else if(a==='buy')buy(b.dataset.id);else if(a==='skip')skip();
+ else if(a==='cell')cell(i);else if(a==='leave'){subs.forEach(f=>f());subs=[];code=me=null;sel=null;players={};fx=[];location.hash='';render()}
+ else if(a==='die'){if(upm){upgrade(i);return}if(me.lk)pick(i);else hold(i)}});
+document.addEventListener('change',e=>{if(e.target&&e.target.id==='tg')tgt=e.target.value});
+setInterval(()=>{if(code&&me&&document.activeElement?.id!=='tg')poll()},8000);
+(async()=>{try{const c=window.claude,u=await c.use('user');U=u;db=await c.use('db');if(u&&db)uid=await u.id();else db=null}catch(e){db=null}render()})();
+</script></body></html>

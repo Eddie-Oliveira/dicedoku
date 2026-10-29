@@ -1,0 +1,34 @@
+# Headless test runner: godot --headless --path godot --script res://tests/run_tests.gd
+# Each test file in res://tests/ named test_*.gd extends RefCounted and has methods starting with "test_".
+# A test fails by calling t.fail("message"). Exit code 0 = all passed.
+extends SceneTree
+
+var failures := 0
+var current := ""
+
+func fail(msg: String) -> void:
+	failures += 1
+	printerr("FAIL ", current, ": ", msg)
+
+func check(cond: bool, msg: String) -> void:
+	if not cond:
+		fail(msg)
+
+func _init() -> void:
+	var ran := 0
+	var dir := DirAccess.open("res://tests")
+	var files := []
+	for f in dir.get_files():
+		if f.begins_with("test_") and f.ends_with(".gd"):
+			files.append(f)
+	files.sort()
+	for f in files:
+		var suite = load("res://tests/" + f).new()
+		for m in suite.get_method_list():
+			var n: String = m["name"]
+			if n.begins_with("test_"):
+				current = f + "::" + n
+				suite.call(n, self)
+				ran += 1
+	print("Ran %d tests, %d failures" % [ran, failures])
+	quit(1 if failures > 0 or ran == 0 else 0)
