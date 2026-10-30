@@ -35,7 +35,7 @@ const SHOP := [
 	{"id": "load", "n": "Loaded d6", "d": "Rolls twice, keeps a useful face", "c": 7, "f": 6, "k": "loaded", "icon": "loaded"},
 	{"id": "hint", "n": "Hint scroll", "d": "+1 hint", "c": 6, "icon": "hint_scroll"},
 	{"id": "roll", "n": "Extra roll", "d": "One more roll this turn", "c": 3, "icon": "extra_roll"},
-	{"id": "scribe", "n": "Scribe's quill", "d": "Memo the possible numbers on 3 tiles of your choice", "c": 4, "icon": "hint_scroll"},
+	{"id": "scribe", "n": "Scribe's quill", "d": "Memo the possible numbers on 3 tiles of your choice", "c": 4, "icon": "quill"},
 ]
 const VERSUS := [
 	{"id": "hex", "n": "Hex", "d": "Rival loses 1 roll next turn", "c": 4, "x": "hex", "icon": "hex"},
