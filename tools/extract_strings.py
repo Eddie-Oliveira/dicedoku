@@ -8,7 +8,7 @@ LIT = r'"((?:[^"\\]|\\.)*)"'
 CALLS = [r'Lang\.t\(' + LIT, r'Lang\.f\(' + LIT, r'\blbl\(' + LIT, r'\bbtn\(' + LIT, r'\btoast\(' + LIT,
          r'float_text\(' + LIT, r'"(?:n|d|text|name)": ' + LIT, r'return ' + LIT,
          r'\bpanel\(' + LIT, r'\belse ' + LIT, r':= ' + LIT + r' if ']
-SKIP = re.compile(r'^(|[a-z_0-9./:%]+|res://.*|user://.*|.*\.svg|.*\.wav|cell_%d|die_%d|[a-z]+_[a-z_]+)$')
+SKIP = re.compile(r'^(|v[0-9][0-9.]*(-dev)?|[a-z_0-9./:%]+|res://.*|user://.*|.*\.svg|.*\.wav|cell_%d|die_%d|[a-z]+_[a-z_]+)$')
 out = set()
 for f in FILES:
     src = open(os.path.join(ROOT, f), encoding="utf-8").read()
