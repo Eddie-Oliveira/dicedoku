@@ -1,7 +1,7 @@
 class_name Game
 extends RefCounted
 ## A local (pass-and-play) match. Every action works on the current seat and returns {"ok": bool, "msg": String}.
-## Port of the web prototype v0.8.1 rules, minus the d20.
+## Port of the web prototype v0.8.1 rules, minus the d20. UI, bots and online replay all act through apply().
 
 var size: int
 var game_seed: int

@@ -25,6 +25,16 @@ Rules
 
 ---
 
+### [2026-10-29] v0.10-dev · GDD, ARCHITECTURE and RELEASES
+areas: DOCS
+agent: docs
+Closes: Online rooms, bots, art in the UI, stable/dev links (DOCS part); Godot port: rules core, plain UI, web build (DOCS part)
+- First GDD (rules as of v0.10-dev), architecture notes (folders, action flow, Firebase layout, CI, promote steps) and player-facing release notes for v0.8.1, v0.9, v0.10-dev.
+- Written from v0.9.md, this CHANGELOG and core/{rules,game,bot,puzzle}.gd; no rules invented.
+- Files: docs/design/GDD.md, docs/tech/ARCHITECTURE.md, docs/RELEASES.md
+- Tests: n/a
+- Needs: DESIGN: confirm GDD wording of useless/dead faces and shop-once-per-turn. CODE: stale comment in game.gd header ("online replay later"); check results order text matches UI.
+
 ### [2026-10-29] v0.10-dev · Online rooms, bots, art in the UI, stable/dev links
 areas: CODE | DESIGN | ASSETS
 agent: lead (code role)
