@@ -35,6 +35,16 @@ Closes: Online rooms, bots, art in the UI, stable/dev links (DOCS part); Godot p
 - Tests: n/a
 - Needs: DESIGN: confirm GDD wording of useless/dead faces and shop-once-per-turn. CODE: stale comment in game.gd header ("online replay later"); check results order text matches UI.
 
+### [2026-10-30] v0.11-dev · Tavern UI restored, How to play tab, dungeon floor variants
+areas: CODE | ASSETS | DESIGN
+agent: lead (code role) + assets
+- Eddie: keep the v0.10 interface (wood buttons, parchment, dungeon map, stone tiles, icons, effects); pastel only for the characters. Restored those assets and the v0.10 palette code; races, classes and Rook stay pastel. Pastel UI versions remain in git history (commit f208781).
+- How to play moved from the lobby into a slide-up tab (same drawer as the in-game Shop/Party tabs).
+- Floor variety (assets agent): 5 variants each of the empty and given tiles in the v0.10 style (v1 original; v2 chipped corner, v3 moss tuft, v4 worn strip + pebble, v5 rune scratch + grain), same brightness, plain centres. Code picks a stable variant per cell and seat (`tile_path`), falling back to the single tile if a variant is missing.
+- Files: godot/ui/main.gd, godot/tests/test_ui.gd, godot/assets/{board,ui,icons,effects}/*, godot/assets/board/stone_tile{,_given}_v1..v5.svg, docs/assets/{ASSETS,STYLE}.md
+- Tests: assets: sharp render + 9x9 board mock with numbers at 640/360 px, XML/size/forbidden checks. Code: CI run for this commit (lobby tab, stable tile choice, variant spread).
+- Needs: DESIGN: Eddie playtest, then promote.
+
 ### [2026-10-30] v0.11-dev · Dice numbers tuned by Eddie
 areas: CODE | DESIGN
 agent: lead (code role)

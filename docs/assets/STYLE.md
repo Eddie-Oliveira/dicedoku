@@ -83,6 +83,11 @@ Players pick a race and a class; the game stacks `characters/class_<id>.svg` ove
 ## Effects (v0.10)
 `effects/` holds animation sprites (128x128 unless noted). Glows use radial gradients that fade to opacity 0 at the edge so they can be scaled/tweened in code. Check them on parchment and on ink backgrounds.
 
+## Floor tile variants (v0.10 dungeon style)
+- `board/stone_tile_v1..v5.svg` (empty/placed) and `board/stone_tile_given_v1..v5.svg` (given) are 64x64 opaque variants of the v0.10 stone tiles; the code picks one variant per cell (pseudo-randomly, stable per cell) so the board reads as a real dungeon floor.
+- All variants share the base palette, gradient, bevel lighting and brightness (mean within about 1 %); only small details change: cracks, a chipped corner, a moss tuft, a worn strip, a pebble, a rune scratch, grain lines.
+- Keep every detail within ~10 px of the tile edges and the centre plain, so cream `#F1E3C6` given numbers and torch `#FFB347` placed numbers (dark outline) stay readable. Check new variants in a 9x9 board mock at 640 px and 360 px.
+
 ## Do / Don't
 - Do: gradients, simple shapes, clipPath, opacity, stroke-dasharray. Keep files under 20 KB.
 - Do: transparent background except board tiles and the map (opaque).
