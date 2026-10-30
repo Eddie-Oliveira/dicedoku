@@ -143,7 +143,7 @@ func test_human_with_bots(t) -> void:
 	ui._on_roll()
 	ui._on_end()
 	t.check(ui.is_bot_turn(), "bot's turn after the human")
-	var before := g.players[1].turn
+	var before: int = g.players[1].turn
 	ui._on_roll()
 	t.check(g.players[1].dv.is_empty(), "human input ignored on bot turn")
 	var guard := 0
