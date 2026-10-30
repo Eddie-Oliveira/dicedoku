@@ -1229,7 +1229,8 @@ func roll_dice_anim(idx: Array) -> void:
 		tw.tween_property(d, "scale", Vector2.ONE, 0.45).set_trans(Tween.TRANS_BACK).set_ease(Tween.EASE_OUT)
 		var flick := d.create_tween()
 		for k in 4:
-			flick.tween_callback(_set_text.bind(d, str(randi_range(1, 9))))
+			var faces: int = game.current().df[int(i)] if game != null and int(i) < game.current().df.size() else 6
+			flick.tween_callback(_set_text.bind(d, Rules.face_label(randi_range(1, faces), faces)))
 			flick.tween_interval(0.07)
 		flick.tween_callback(_set_text.bind(d, final))
 
