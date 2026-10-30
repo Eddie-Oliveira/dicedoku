@@ -53,6 +53,17 @@ static func act_key(i: int) -> String:
 static func seat_key() -> String:
 	return "j%013d%03d" % [int(Time.get_unix_time_from_system() * 1000.0), randi() % 1000]
 
+## A seat key that sorts after every seat already in the room (join order = seat order).
+func next_seat_key() -> String:
+	var k := seat_key()
+	var seats: Dictionary = room.get("seats", {})
+	var keys := seats.keys()
+	keys.sort()
+	if not keys.is_empty() and k <= str(keys[-1]):
+		var last := str(keys[-1])
+		k = "j%016d" % (int(last.substr(1)) + 1)
+	return k
+
 func seats_sorted() -> Array:
 	var seats: Dictionary = room.get("seats", {})
 	var keys := seats.keys()
@@ -132,7 +143,7 @@ func join(c: String, pname: String, pet: String) -> String:
 			if not used.has(p):
 				pet = p
 				break
-	var k := seat_key()
+	var k := next_seat_key()
 	var seat := {"name": pname, "pet": pet, "uid": uid, "bot": ""}
 	var w: Dictionary = await db.req(PUT, "rooms/%s/seats/%s" % [code, k], seat)
 	if not w["ok"]:
@@ -145,6 +156,9 @@ func join(c: String, pname: String, pet: String) -> String:
 func add_bot(level: String) -> String:
 	if not host or started():
 		return ""
+	var r: Dictionary = await db.req(GET, "rooms/" + code)
+	if r["ok"] and r["data"] is Dictionary:
+		room = r["data"]
 	var seats := seats_sorted()
 	if seats.size() >= MAX_SEATS:
 		return "Room is full"
@@ -157,7 +171,7 @@ func add_bot(level: String) -> String:
 			pet = p
 			break
 	var seat := {"name": "%s bot" % Rules.PET_NAMES[pet].split(" ")[0], "pet": pet, "uid": "bot", "bot": level}
-	var k := seat_key()
+	var k := next_seat_key()
 	var w: Dictionary = await db.req(PUT, "rooms/%s/seats/%s" % [code, k], seat)
 	if not w["ok"]:
 		return "Could not add a bot"

@@ -4,6 +4,7 @@ extends Node
 ## Returns {"ok": bool, "code": int, "data": Variant}. Retries network errors and 5xx up to 3 times.
 
 var base := ""
+var last_error := ""
 
 func _init(url: String = "") -> void:
 	base = url.rstrip("/")
@@ -19,12 +20,14 @@ func req(method: int, path: String, body: Variant = null, query: String = "") ->
 		add_child(h)
 		var err := h.request(url, PackedStringArray(["Content-Type: application/json"]), method, data)
 		if err != OK:
+			last_error = "request() error %d (in tree: %s)" % [err, h.is_inside_tree()]
 			h.queue_free()
 			continue
 		var res: Array = await h.request_completed
 		h.queue_free()
 		var code: int = res[1]
 		if res[0] != HTTPRequest.RESULT_SUCCESS or code >= 500:
+			last_error = "result %d, http %d" % [res[0], code]
 			continue
 		var txt: String = (res[3] as PackedByteArray).get_string_from_utf8()
 		var parsed: Variant = null

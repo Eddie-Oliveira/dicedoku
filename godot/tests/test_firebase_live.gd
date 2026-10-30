@@ -10,7 +10,7 @@ func test_live_room(t) -> void:
 	t.root.add_child(fb)
 	var path := "rooms/CI%d" % (randi() % 1000000)
 	var w: Dictionary = await fb.req(HTTPClient.METHOD_PUT, path + "/cfg", {"probe": 1})
-	t.check(w["ok"], "live write (code %d)" % w["code"])
+	t.check(w["ok"], "live write (code %d, %s)" % [w["code"], fb.last_error])
 	var r: Dictionary = await fb.req(HTTPClient.METHOD_GET, path + "/cfg")
 	t.check(r["ok"] and r["data"] is Dictionary and int(r["data"]["probe"]) == 1, "live read back")
 	await fb.req(HTTPClient.METHOD_DELETE, path)

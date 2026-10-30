@@ -49,11 +49,13 @@ func test_online_room(t) -> void:
 	await host.add_bot("hard")
 	await sync([host, guest])
 	var ss := guest.seats_sorted()
-	t.check(ss.size() == 3 and ss[1]["pet"] == "puppy_knight" and ss[2]["bot"] == "hard", "seats: taken pet swapped, bot added")
+	t.check(ss.size() == 3 and ss[1]["pet"] == "puppy_knight" and ss[2]["bot"] == "hard", "seats: taken pet swapped, bot added: %s" % [ss])
 	t.check((await guest.start()) != "", "only the host can start")
 	t.check((await host.start()) == "", "host starts")
 	await sync([host, guest])
-	t.check(host.game != null and guest.game != null and guest.my_seat == 1 and host.my_seat == 0, "both devices built the game")
+	t.check(host.game != null and guest.game != null and guest.my_seat == 1 and host.my_seat == 0, "both devices built the game (%s %s %d %d)" % [host.game != null, guest.game != null, guest.my_seat, host.my_seat])
+	if host.game == null or guest.game == null:
+		return
 	t.check(host.game.sol == guest.game.sol, "same puzzle on both devices")
 	t.check(not guest.act({"a": "roll"})["ok"], "guest cannot act on the host's turn")
 	await drive([host, guest], t)
