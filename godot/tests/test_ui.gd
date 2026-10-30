@@ -4,6 +4,7 @@ extends RefCounted
 func make_ui(t):
 	var ui = load("res://ui/main.tscn").instantiate()
 	t.root.add_child(ui)
+	ui.build()
 	return ui
 
 func seats(k: int) -> Array:

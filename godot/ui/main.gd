@@ -30,6 +30,12 @@ var toast_label: Label
 var toast_left := 0.0
 
 func _ready() -> void:
+	build()
+
+## Builds the permanent nodes once; safe to call before the node is in a running tree (tests).
+func build() -> void:
+	if body != null:
+		return
 	theme = _make_theme()
 	var bg := ColorRect.new()
 	bg.color = C_PARCH

@@ -20,8 +20,8 @@ func test_generator_parity(t) -> void:
 	for case in F["gen"]:
 		var n := int(case[0])
 		var g := Puzzle.generate(n, int(case[1]))
-		t.check(g["sol"] == _ints(case[2]), "solution differs for %dx%d seed %s" % [n, case[1]])
-		t.check(g["puz"] == _ints(case[3]), "puzzle differs for %dx%d seed %s" % [n, case[1]])
+		t.check(g["sol"] == _ints(case[2]), "solution differs for %dx%d seed %s" % [n, n, case[1]])
+		t.check(g["puz"] == _ints(case[3]), "puzzle differs for %dx%d seed %s" % [n, n, case[1]])
 
 func test_generator_valid_and_unique(t) -> void:
 	for n in [4, 6, 9]:
@@ -33,9 +33,9 @@ func test_generator_valid_and_unique(t) -> void:
 			for i in n * n:
 				var tmp := sol.duplicate()
 				tmp[i] = 0
-				t.check(Puzzle.ok(tmp, n, cfg["br"], cfg["bc"], i / n, i % n, sol[i]), "invalid solution %dx%d seed %d cell %d" % [n, s, i])
+				t.check(Puzzle.ok(tmp, n, cfg["br"], cfg["bc"], i / n, i % n, sol[i]), "invalid solution %dx%d seed %d cell %d" % [n, n, s, i])
 				t.check(puz[i] == 0 or puz[i] == sol[i], "given mismatch")
-			t.check(Puzzle.count(puz, n, cfg["br"], cfg["bc"], 2) == 1, "puzzle %dx%d seed %d not unique" % [n, s])
+			t.check(Puzzle.count(puz, n, cfg["br"], cfg["bc"], 2) == 1, "puzzle %dx%d seed %d not unique" % [n, n, s])
 			t.check(Puzzle.filled(puz) >= cfg["givens"], "too few givens")
 
 func test_generation_speed(t) -> void:

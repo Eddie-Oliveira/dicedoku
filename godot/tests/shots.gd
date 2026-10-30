@@ -24,6 +24,7 @@ func snap(name: String, scroll_to: int = 0) -> void:
 func _run() -> void:
 	ui = load("res://ui/main.tscn").instantiate()
 	root.add_child(ui)
+	ui.build()
 	await snap("01_lobby")
 	var seats := [{"name": "Ana", "pet": "kitten_wizard"}, {"name": "Bob", "pet": "puppy_knight"}, {"name": "Cy", "pet": "fox_rogue"}]
 	ui.start_game(9, seats, 1582125694, 3)
