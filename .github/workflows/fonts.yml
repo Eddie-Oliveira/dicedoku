@@ -22,7 +22,9 @@ jobs:
           curl -fsSL -o OFL.txt "https://github.com/google/fonts/raw/main/ofl/notosanssc/OFL.txt"
       - name: Subset
         run: |
-          python3 - <<'PY'
+          set -o pipefail
+          mkdir -p godot/assets/fonts
+          python3 - <<'PY' 2>&1 | tee subset.log
           import json
           from fontTools.ttLib import TTFont
           from fontTools.varLib import instancer
@@ -38,6 +40,9 @@ jobs:
           PY
           cp OFL.txt godot/assets/fonts/OFL-NotoSansSC.txt
           ls -la godot/assets/fonts
+      - name: Report errors
+        if: failure()
+        run: tail -5 subset.log | sed 's/^/::error title=Font subset::/' || true
       - name: Commit the font
         run: |
           git config user.name "fonts-bot"
