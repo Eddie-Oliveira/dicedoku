@@ -25,6 +25,19 @@ Rules
 
 ---
 
+### [2026-10-29] v0.10-dev · Online rooms, bots, art in the UI, stable/dev links
+areas: CODE | DESIGN | ASSETS
+agent: lead (code role)
+- Playtest fix (also on `stable`): board lines between some columns/rows vanished when the page scaled (1 px borders). Lines are now 3/7 px gaps over a dark frame; checked on a phone-sized screenshot (`08_board_phone`).
+- Two live links: branch `stable` at https://eddie-oliveira.github.io/dicedoku/ (what players use), branch `main` at /dev/. Only runs on `main` may deploy to Pages; each deploy builds both branches. Promote = fast-forward `stable` to `main`.
+- `Game.apply(action dict)` is the single entry point for UI, bots and online replay. New action `botify` hands a seat to a normal bot.
+- Bots (`core/bot.gd`): easy (simple logic, 30% risky guesses), normal (proven placements only: naked/hidden singles; guesses after 3 stuck turns), hard (knows the solution). Bots never use the game's dice RNG, so replays stay identical. Lobby seats are Human / Bot (easy/normal/hard); bot turns play themselves (0.45 s per step); no pass screen when only one human.
+- Online (`net/firebase.gd`, `net/online.gd`), Firebase Realtime Database https://dicedoku-ac99f-default-rtdb.firebaseio.com (rules: read/write only under `rooms/$code`): room code of 5 letters; `rooms/CODE` holds cfg (size, seed, dice_seed, host), seats (ordered keys), started flag and the action log `acts/a000000…`. Every device builds the same Game and applies the same actions; only the seat whose turn it is may add actions; the host runs bots. Rejoin by name after reload replays the whole log. Host may hand a seat idle for 90 s to a bot.
+- Art wired in: dungeon-map background, parchment panels, wood buttons, stone tiles (given = carved), gem dice with big outlined numbers and a type label, held/selected rings, pet portraits (lobby, banner, pass screen, party, results), Rook in the shop, item icons, logo emblem.
+- Files: godot/core/{game,player_state,bot}.gd, godot/net/*, godot/ui/main.gd, godot/tests/{test_bot,test_online,test_firebase_live,fake_backend,test_ui,shots,run_tests}.gd, .github/workflows/tests.yml
+- Tests: CI 35 tests, 0 failures, including bot soundness, bot matches at every level, exact replay, two-device online room on an in-memory backend, idle seat handoff, and a live round trip on the real Firebase database (room created, joined, started, one turn synced, deleted). Screenshots reviewed.
+- Needs: DESIGN: Eddie playtest online + bots on /dev/; decide when to promote to stable. DOCS: GDD + ARCHITECTURE + RELEASES for v0.9 and v0.10-dev. ASSETS (later): die-face animations, curse sparkle effect, sounds.
+
 ### [2026-10-29] v0.9-dev · Godot port: rules core, plain UI, web build
 areas: CODE | DESIGN
 agent: lead (code role)
