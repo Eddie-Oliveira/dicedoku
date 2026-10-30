@@ -79,7 +79,7 @@ jobs:
   # One Pages site, two builds: branch "stable" at the root (what players use), branch "main" at /dev/ (next version).
   web:
     needs: godot-tests
-    if: github.ref == 'refs/heads/main' || github.ref == 'refs/heads/stable'
+    if: github.ref == 'refs/heads/main'
     concurrency:
       group: pages
       cancel-in-progress: false
