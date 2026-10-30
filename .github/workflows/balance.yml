@@ -1,0 +1,35 @@
+name: balance
+on:
+  workflow_dispatch:
+env:
+  GODOT_VERSION: "4.5-stable"
+jobs:
+  sim:
+    runs-on: ubuntu-latest
+    timeout-minutes: 40
+    steps:
+      - uses: actions/checkout@v4
+      - name: Cache Godot
+        id: cache
+        uses: actions/cache@v4
+        with:
+          path: ~/godot
+          key: godot-${{ env.GODOT_VERSION }}
+      - name: Download Godot
+        if: steps.cache.outputs.cache-hit != 'true'
+        run: |
+          mkdir -p ~/godot && cd ~/godot
+          curl -fsSL -o g.zip "https://github.com/godotengine/godot/releases/download/${GODOT_VERSION}/Godot_v${GODOT_VERSION}_linux.x86_64.zip"
+          unzip -q g.zip && rm g.zip && mv Godot_v* godot && chmod +x godot
+      - name: Import project
+        run: ~/godot/godot --headless --path godot --import || true
+      - name: Run balance study
+        run: |
+          set -o pipefail
+          timeout 2100 ~/godot/godot --headless --path godot --script res://tests/sim_balance.gd 2>&1 | tee sim.txt
+      - name: Publish table (annotation)
+        if: always()
+        run: |
+          T=$(grep -E "^\|" sim.txt | sed ':a;N;$!ba;s/\n/%0A/g')
+          echo "::notice title=Balance::$T"
+          grep -E "SCRIPT ERROR|Parse Error" sim.txt | head -20 | sed 's/^/::error title=Sim error::/' || true

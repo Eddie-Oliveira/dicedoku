@@ -22,12 +22,18 @@ func _fx(t: String, data: Dictionary = {}) -> void:
 	fx.append(e)
 
 ## seats: Array of {"name": String, "pet": race id, "cls": class id, "bot": level or ""}. dice_seed >= 0 makes dice rolls reproducible (tests).
-func _init(n: int, seed_value: int, seats: Array, dice_seed: int = -1) -> void:
+## Puzzle settings: givens (-1 = grid default) and quota mode (see Puzzle.generate).
+var givens := -1
+var mode := ""
+
+func _init(n: int, seed_value: int, seats: Array, dice_seed: int = -1, givens_: int = -1, mode_: String = "") -> void:
+	givens = givens_
+	mode = mode_
 	size = n
 	game_seed = seed_value
 	br = Puzzle.GRIDS[n]["br"]
 	bc = Puzzle.GRIDS[n]["bc"]
-	var base := Puzzle.generate(n, game_seed)
+	var base := Puzzle.generate(n, game_seed, givens, mode)
 	for k in seats.size():
 		var s: Dictionary = seats[k]
 		var mine := base

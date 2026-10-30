@@ -100,11 +100,15 @@ static func _solve(g: Array, n: int, br: int, bc: int, rows: Array, cols: Array,
 	return total
 
 ## Returns {"sol": Array, "puz": Array}. 0 = empty cell.
-static func generate(n: int, seed_value: int) -> Dictionary:
+## givens < 0 uses the grid default. mode "" (legacy, matches the web prototype) or "random" removes cells in random order;
+## "even" spreads the givens evenly over the digits (extras go to the highest digits); "boost" also gives the 9s and 8s
+## extra givens taken from the lowest digits (high numbers need d8/d10 dice).
+static func generate(n: int, seed_value: int, givens: int = -1, mode: String = "") -> Dictionary:
 	var cfg: Dictionary = GRIDS[n]
 	var br: int = cfg["br"]
 	var bc: int = cfg["bc"]
-	var givens: int = cfg["givens"]
+	if givens < 0:
+		givens = cfg["givens"]
 	var r := DRng.new(seed_value)
 	var rows := []
 	for grp in DRng.shuf(DRng.seq(n / br), r):
@@ -121,6 +125,8 @@ static func generate(n: int, seed_value: int) -> Dictionary:
 	for y in rows:
 		for x in cols:
 			sol.append(d[(bc * (y % br) + y / br + x) % n])
+	if mode == "even" or mode == "boost":
+		return _generate_quota(sol, n, br, bc, givens, quotas(n, givens, mode), r)
 	var puz := sol.duplicate()
 	for i in DRng.shuf(DRng.seq(n * n), r):
 		if filled(puz) <= givens:
@@ -129,7 +135,67 @@ static func generate(n: int, seed_value: int) -> Dictionary:
 		puz[i] = 0
 		if count(puz, n, br, bc, 2) != 1:
 			puz[i] = v
-	return {"sol": sol, "puz": puz}
+	return {"sol": sol, "puz": puz, "attempts": 1}
+
+## Givens per digit (index 1..n).
+static func quotas(n: int, givens: int, mode: String) -> Array:
+	var q := [0]
+	for d in n:
+		q.append(givens / n)
+	for k in givens % n:
+		q[n - k] += 1
+	if mode == "boost" and n >= 9:
+		for pair in [[9, 1], [9, 2], [8, 3]]:
+			if q[pair[1]] > 1 and q[pair[0]] < n:
+				q[pair[0]] += 1
+				q[pair[1]] -= 1
+	return q
+
+## Removes cells while keeping the puzzle unique and never dropping a digit below its quota.
+## Retries with a new removal order; returns the attempt closest to the target.
+static func _generate_quota(sol: Array, n: int, br: int, bc: int, givens: int, q: Array, r: DRng) -> Dictionary:
+	var best: Array = []
+	var tries := 0
+	for attempt in 40:
+		tries += 1
+		var puz := sol.duplicate()
+		var cnt := [0]
+		for d in n:
+			cnt.append(n)
+		var left := n * n
+		for i in DRng.shuf(DRng.seq(n * n), r):
+			if left <= givens:
+				break
+			var d: int = sol[i]
+			if cnt[d] <= q[d]:
+				continue
+			puz[i] = 0
+			if count(puz, n, br, bc, 2) != 1:
+				puz[i] = d
+			else:
+				cnt[d] -= 1
+				left -= 1
+		if best.is_empty() or filled(puz) < filled(best):
+			best = puz
+		if left <= givens:
+			break
+	return {"sol": sol, "puz": best, "attempts": tries}
+
+## Dice class of a digit: the smallest die that can roll it (1-4 any die, 5-6 d6+, 7-8 d8+, 9 d10).
+static func dice_class(d: int) -> int:
+	for k in Rules.UPGRADES.size():
+		if d <= Rules.UPGRADES[k]:
+			return k
+	return Rules.UPGRADES.size()
+
+static func digit_counts(g: Array, n: int) -> Array:
+	var c := []
+	for d in n + 1:
+		c.append(0)
+	for v in g:
+		c[v] += 1
+	c[0] = 0
+	return c
 
 static func filled(g: Array) -> int:
 	var c := 0
@@ -140,7 +206,9 @@ static func filled(g: Array) -> int:
 
 ## A different-looking but equally hard copy: digits relabelled, rows shuffled within bands and bands shuffled,
 ## columns within stacks and stacks shuffled, and (square boxes only) maybe transposed. Uniqueness is preserved.
-static func transform(sol: Array, puz: Array, n: int, br: int, bc: int, r: DRng) -> Dictionary:
+## fair = true only swaps digits that need the same dice and have the same number of givens, so every seat
+## keeps the same amount of given 7s, 8s and 9s (fair = false is the v0.10 behaviour, kept for the balance study).
+static func transform(sol: Array, puz: Array, n: int, br: int, bc: int, r: DRng, fair: bool = true) -> Dictionary:
 	var rows := []
 	for band in DRng.shuf(DRng.seq(n / br), r):
 		for y in DRng.shuf(DRng.seq(br), r):
@@ -150,8 +218,24 @@ static func transform(sol: Array, puz: Array, n: int, br: int, bc: int, r: DRng)
 		for x in DRng.shuf(DRng.seq(bc), r):
 			cols.append(stack * bc + x)
 	var digits := [0]
-	for d in DRng.shuf(DRng.seq(n), r):
-		digits.append(d + 1)
+	if fair:
+		for d in n:
+			digits.append(d + 1)
+		var cnt := digit_counts(puz, n)
+		var groups := {}
+		for d in range(1, n + 1):
+			var key := "%d:%d" % [dice_class(d), cnt[d]]
+			if not groups.has(key):
+				groups[key] = []
+			groups[key].append(d)
+		for key in groups:
+			var src: Array = groups[key]
+			var dst := DRng.shuf(src, r)
+			for k in src.size():
+				digits[src[k]] = dst[k]
+	else:
+		for d in DRng.shuf(DRng.seq(n), r):
+			digits.append(d + 1)
 	var flip := br == bc and r.next_float() < 0.5
 	var s2 := []
 	var p2 := []

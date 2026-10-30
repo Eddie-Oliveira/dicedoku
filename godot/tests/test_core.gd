@@ -67,3 +67,25 @@ func test_no_d20(t) -> void:
 		t.check(o.get("f", 0) != 20, "no d20 in shop")
 	t.check(Rules.is_wild(10, 10) and not Rules.is_wild(10, 8) and not Rules.is_wild(20, 20), "only the d10 zero is wild")
 	t.check(Rules.face_label(10, 10) == "0" and Rules.face_label(7, 8) == "7", "d10 zero label")
+
+func test_quota_generation(t) -> void:
+	for mode in ["even", "boost"]:
+		for target in [28, 36]:
+			var g := Puzzle.generate(9, 4242 + target, target, mode)
+			var q := Puzzle.quotas(9, target, mode)
+			var c := Puzzle.digit_counts(g["puz"], 9)
+			t.check(Puzzle.count(g["puz"], 9, 3, 3, 2) == 1, "%s %d unique" % [mode, target])
+			t.check(Puzzle.filled(g["puz"]) <= target + 2, "%s %d near target (%d)" % [mode, target, Puzzle.filled(g["puz"])])
+			for d in range(1, 10):
+				t.check(c[d] >= q[d], "%s %d digit %d keeps its quota" % [mode, target, d])
+			for i in 81:
+				t.check(g["puz"][i] == 0 or g["puz"][i] == g["sol"][i], "givens match")
+
+func test_fair_relabel(t) -> void:
+	var base := Puzzle.generate(9, 99, 34, "random")
+	var c0 := Puzzle.digit_counts(base["puz"], 9)
+	for k in 6:
+		var m := Puzzle.transform(base["sol"], base["puz"], 9, 3, 3, DRng.new(k), true)
+		var c := Puzzle.digit_counts(m["puz"], 9)
+		t.check(c[9] == c0[9] and c[7] + c[8] == c0[7] + c0[8], "fair relabel keeps given 9s and 7-8s")
+		t.check(Puzzle.count(m["puz"], 9, 3, 3, 2) == 1, "fair copy unique")
