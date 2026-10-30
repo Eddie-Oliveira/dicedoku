@@ -15,7 +15,15 @@ const C_RED := Color("#B5442C")
 const C_OK := Color("#4E8A3E")
 const DIE_COLORS := {4: Color("#2A9D8F"), 6: Color("#C0392B"), 8: Color("#2E5EAA"), 10: Color("#7D3C98")}
 const KIND_TAGS := {"mirror": " Mirror", "safe": " Safe", "golden": " Gold", "loaded": " Loaded"}
-const SIZES := [4, 6, 9]
+const SIZES := [4, 9]
+## Lobby modes: Blitz 4x4, or 9x9 with how many numbers start on the board (quota spreads them evenly over the digits).
+const MODES := [
+	{"name": "Blitz 4x4", "size": 4, "givens": -1, "q": ""},
+	{"name": "9x9 Cozy (42 numbers shown)", "size": 9, "givens": 42, "q": "even"},
+	{"name": "9x9 Adventurer (36 shown)", "size": 9, "givens": 36, "q": "even"},
+	{"name": "9x9 Hero (32 shown)", "size": 9, "givens": 32, "q": "even"},
+	{"name": "9x9 Legend (28 shown)", "size": 9, "givens": 28, "q": "even"},
+]
 const HOW_TO := [
 	["Goal", "Fill your sudoku board before your rivals. Everyone gets the same puzzle, shuffled so the numbers sit in different places. Lowest turns + 2 x mistakes wins."],
 	["Your turn", "Roll your dice up to 3 times. Tap dice to hold them between rolls. Lock when you like your dice (it locks by itself after the last roll)."],
@@ -39,13 +47,19 @@ var upgrade_mode := false
 var memo_mode := false
 var target := -1
 var shown_cur := -1
-var lobby := {"size": 6, "count": 2, "names": ["Ana", "Bob", "Cy", "Di"], "pets": [0, 1, 2, 3], "classes": [0, 1, 2, 3], "types": [0, 0, 0, 0]}
+var lobby := {"mode": 2, "count": 2, "names": ["Ana", "Bob", "Cy", "Di"], "pets": [0, 1, 2, 3], "classes": [0, 1, 2, 3], "types": [0, 0, 0, 0]}
 const SEAT_TYPES := ["Human", "Bot (easy)", "Bot (normal)", "Bot (hard)"]
 const BOT_LEVELS := ["", "easy", "normal", "hard"]
 const BOT_DELAY := 0.65
 var bot_wait := 0.0
 var bot_fails := 0
 var body: VBoxContainer
+## Where panel() adds new panels (body, or an open drawer).
+var panel_parent: Control = null
+var tabbar: HBoxContainer
+var drawer: PanelContainer
+var drawer_box: VBoxContainer
+var drawer_open := ""
 var toast_panel: PanelContainer
 var toast_label: Label
 var toast_left := 0.0
@@ -99,6 +113,7 @@ func build() -> void:
 	toast_label.autowrap_mode = TextServer.AUTOWRAP_WORD_SMART
 	toast_panel.add_child(toast_label)
 	toast_panel.visible = false
+	_build_drawer()
 	_build_fx()
 	add_child(toast_panel)
 	show_lobby()
@@ -237,6 +252,10 @@ func img(rel: String, px: int) -> TextureRect:
 	return r
 
 func clear() -> void:
+	if tabbar != null:
+		tabbar.visible = false
+		drawer.visible = false
+		drawer_open = ""
 	for c in body.get_children():
 		body.remove_child(c)
 		c.queue_free()
@@ -267,7 +286,7 @@ func panel(title: String) -> VBoxContainer:
 	var v := VBoxContainer.new()
 	v.add_theme_constant_override("separation", 8)
 	pc.add_child(v)
-	body.add_child(pc)
+	(panel_parent if panel_parent != null else body).add_child(pc)
 	if title != "":
 		v.add_child(lbl(title, 24, C_WOOD))
 	return v
@@ -296,12 +315,12 @@ func show_lobby() -> void:
 	body.add_child(lbl("v0.10", 18, C_STONE))
 	var v := panel("New game")
 	var r := row()
-	r.add_child(lbl("Grid"))
+	r.add_child(lbl("Mode"))
 	var og := OptionButton.new()
-	for n in SIZES:
-		og.add_item("%dx%d" % [n, n], n)
-	og.select(SIZES.find(lobby["size"]))
-	og.item_selected.connect(func(ix: int) -> void: lobby["size"] = SIZES[ix])
+	for m in MODES:
+		og.add_item(m["name"])
+	og.select(lobby["mode"])
+	og.item_selected.connect(func(ix: int) -> void: lobby["mode"] = ix)
 	r.add_child(og)
 	v.add_child(r)
 	var r2 := row()
@@ -365,6 +384,7 @@ func show_lobby() -> void:
 	jr.add_child(ce)
 	jr.add_child(btn("Join", _on_join_online))
 	o.add_child(jr)
+	body.add_child(btn("Dice number tuner", show_tuner))
 	var h := panel("How to play")
 	for sec in HOW_TO:
 		h.add_child(lbl(sec[0], 20, C_WOOD))
@@ -388,11 +408,12 @@ func start_from_lobby() -> void:
 		var pet: String = Rules.PETS[lobby["pets"][i]]
 		var nm: String = str(lobby["names"][i]).strip_edges()
 		seats.append({"name": nm if nm != "" else "Player %d" % (i + 1), "pet": pet, "cls": Rules.CLASSES[lobby["classes"][i]], "bot": BOT_LEVELS[lobby["types"][i]]})
-	start_game(lobby["size"], seats)
+	var m: Dictionary = MODES[lobby["mode"]]
+	start_game(m["size"], seats, -1, -1, m["givens"], m["q"])
 
-func start_game(n: int, seats: Array, seed_value: int = -1, dice_seed: int = -1) -> void:
+func start_game(n: int, seats: Array, seed_value: int = -1, dice_seed: int = -1, givens: int = -1, qmode: String = "") -> void:
 	var s := seed_value if seed_value >= 0 else randi() % 2147483647
-	game = Game.new(n, s, seats, dice_seed)
+	game = Game.new(n, s, seats, dice_seed, givens, qmode)
 	sel = -1
 	upgrade_mode = false
 	memo_mode = false
@@ -522,12 +543,14 @@ func show_game() -> void:
 	_board(p)
 	_tracker(p)
 	_dice(p)
-	_shop(p)
-	_players()
+	_fill_drawer()
 	var bottom := row()
 	bottom.add_child(btn("Sound: off" if muted else "Sound: on", _on_mute))
 	bottom.add_child(btn("Quit to lobby", _leave_online))
 	body.add_child(bottom)
+	var spacer := Control.new()
+	spacer.custom_minimum_size = Vector2(0, 96)
+	body.add_child(spacer)
 
 func _phase(p: PlayerState) -> String:
 	if memo_mode:
@@ -668,13 +691,11 @@ func _dice(p: PlayerState) -> void:
 		var sb: StyleBox = _box(col, 12, border, bw)
 		var gem := tbox("dice/gem_d%d.svg" % f, 0, 0, Color(0.55, 0.55, 0.55) if col == C_STONE else Color.WHITE)
 		if gem != null:
-			gem.content_margin_top = 0
-			gem.content_margin_bottom = 12
 			sb = gem
 		for st in ["normal", "hover", "pressed", "disabled"]:
 			b.add_theme_stylebox_override(st, sb)
 		b.add_theme_stylebox_override("focus", StyleBoxEmpty.new())
-		b.add_theme_font_size_override("font_size", 40)
+		style_die_number(b, sb, f)
 		for c in ["font_color", "font_hover_color", "font_pressed_color"]:
 			b.add_theme_color_override(c, Color.WHITE)
 		b.add_theme_color_override("font_outline_color", C_INK)
@@ -810,6 +831,224 @@ func show_results() -> void:
 		v.add_child(rr)
 		place += 1
 	body.add_child(btn("New game", _leave_online))
+
+# ---------- slide-up tabs: Rook's shop and the party ----------
+
+func _build_drawer() -> void:
+	drawer = PanelContainer.new()
+	drawer.name = "drawer"
+	drawer.set_anchors_preset(Control.PRESET_BOTTOM_WIDE)
+	drawer.offset_top = -760
+	drawer.offset_bottom = -84
+	drawer.visible = false
+	var sc := ScrollContainer.new()
+	sc.horizontal_scroll_mode = ScrollContainer.SCROLL_MODE_DISABLED
+	sc.custom_minimum_size = Vector2(0, 640)
+	drawer_box = VBoxContainer.new()
+	drawer_box.size_flags_horizontal = Control.SIZE_EXPAND_FILL
+	drawer_box.add_theme_constant_override("separation", 10)
+	sc.add_child(drawer_box)
+	drawer.add_child(sc)
+	add_child(drawer)
+	tabbar = HBoxContainer.new()
+	tabbar.name = "tabbar"
+	tabbar.set_anchors_preset(Control.PRESET_BOTTOM_WIDE)
+	tabbar.offset_top = -80
+	tabbar.offset_bottom = -8
+	tabbar.offset_left = 12
+	tabbar.offset_right = -12
+	tabbar.add_theme_constant_override("separation", 10)
+	tabbar.visible = false
+	add_child(tabbar)
+
+func _fill_drawer() -> void:
+	var p := game.current()
+	for c in tabbar.get_children():
+		tabbar.remove_child(c)
+		c.queue_free()
+	var bs := btn("Rook's shop  ·  %d gold" % p.gold, toggle_drawer.bind("shop"))
+	bs.name = "tab_shop"
+	bs.size_flags_horizontal = Control.SIZE_EXPAND_FILL
+	if tex("icons/gold_coin.svg") != null:
+		bs.icon = tex("icons/gold_coin.svg")
+		bs.expand_icon = false
+		bs.add_theme_constant_override("icon_max_width", 34)
+	var bp := btn("Party (%d)" % game.players.size(), toggle_drawer.bind("party"))
+	bp.name = "tab_party"
+	bp.size_flags_horizontal = Control.SIZE_EXPAND_FILL
+	tabbar.add_child(bs)
+	tabbar.add_child(bp)
+	tabbar.visible = true
+	for c in drawer_box.get_children():
+		drawer_box.remove_child(c)
+		c.queue_free()
+	panel_parent = drawer_box
+	var head := row()
+	head.add_child(lbl("Rook's shop" if drawer_open == "shop" else "Party", 24, C_WOOD))
+	head.add_child(btn("Close", toggle_drawer.bind(drawer_open)))
+	drawer_box.add_child(head)
+	if drawer_open == "shop":
+		_shop(p)
+	elif drawer_open == "party":
+		_players()
+	panel_parent = null
+	drawer.visible = drawer_open != ""
+
+func toggle_drawer(which: String) -> void:
+	var opening := drawer_open != which
+	drawer_open = which if opening else ""
+	if game == null or screen != "game":
+		return
+	_fill_drawer()
+	if opening:
+		drawer.pivot_offset = Vector2(drawer.size.x / 2, drawer.size.y)
+		drawer.position.y += 120
+		drawer.modulate.a = 0.0
+		var tw := drawer.create_tween()
+		tw.set_parallel(true)
+		tw.tween_property(drawer, "position:y", drawer.position.y - 120, 0.22).set_trans(Tween.TRANS_CUBIC).set_ease(Tween.EASE_OUT)
+		tw.tween_property(drawer, "modulate:a", 1.0, 0.18)
+
+func open_drawer(which: String) -> void:
+	drawer_open = ""
+	toggle_drawer(which)
+
+# ---------- dice number tuner ----------
+
+## Number position on each gem: [x offset, y offset, font size]. Eddie's tuned values go here.
+const DIE_TUNE_DEFAULT := {4: [0, -6, 40], 6: [0, -6, 40], 8: [0, -6, 40], 10: [0, -6, 40]}
+var die_tune := {}
+const TUNE_PATH := "user://dice_tune.cfg"
+
+func tune_for(f: int) -> Array:
+	if die_tune.is_empty():
+		die_tune = DIE_TUNE_DEFAULT.duplicate(true)
+		var cf := ConfigFile.new()
+		if cf.load(TUNE_PATH) == OK:
+			for k in die_tune:
+				die_tune[k] = cf.get_value("dice", "d%d" % k, die_tune[k])
+	return die_tune.get(f, [0, -6, 40])
+
+## Applies the tuned number position/size to a die button that uses the gem stylebox.
+func style_die_number(b: Button, sb: StyleBox, f: int) -> void:
+	var t := tune_for(f)
+	if sb is StyleBoxTexture:
+		sb.content_margin_left = maxi(0, 2 * int(t[0]))
+		sb.content_margin_right = maxi(0, -2 * int(t[0]))
+		sb.content_margin_top = maxi(0, 2 * int(t[1]))
+		sb.content_margin_bottom = maxi(0, -2 * int(t[1]))
+	b.add_theme_font_size_override("font_size", int(t[2]))
+
+func tune_code() -> String:
+	var parts := []
+	for k in [4, 6, 8, 10]:
+		var t := tune_for(k)
+		parts.append("d%d=%d,%d,%d" % [k, t[0], t[1], t[2]])
+	return ";".join(PackedStringArray(parts))
+
+var _tune_previews := {}
+var _tune_code_edit: LineEdit
+
+func show_tuner() -> void:
+	screen = "tuner"
+	clear()
+	_tune_previews = {}
+	body.add_child(lbl("Dice number tuner", 40, C_WOOD))
+	body.add_child(lbl("Move each number until it sits in the middle of its gem. Your settings are saved on this device. Then tap Copy and send the code to Claudio so everyone gets them.", 18))
+	for f in [4, 6, 8, 10]:
+		var v := panel("d%d" % f)
+		var r := row()
+		var previews := []
+		for val in [Rules.face_label(f, f), "8" if f >= 8 else "3"]:
+			var b := Button.new()
+			b.custom_minimum_size = Vector2(92, 92)
+			b.text = str(val)
+			_paint_die(b, f)
+			r.add_child(b)
+			previews.append(b)
+		var big := Button.new()
+		big.custom_minimum_size = Vector2(184, 184)
+		big.text = "5" if f >= 6 else "2"
+		_paint_die(big, f, 2.0)
+		r.add_child(big)
+		previews.append(big)
+		_tune_previews[f] = previews
+		v.add_child(r)
+		var t := tune_for(f)
+		var names := ["Left / right", "Up / down", "Size"]
+		var ranges := [[-20, 20], [-24, 24], [20, 60]]
+		for k in 3:
+			var sr := row()
+			sr.add_child(lbl(names[k], 18))
+			var sl := HSlider.new()
+			sl.min_value = ranges[k][0]
+			sl.max_value = ranges[k][1]
+			sl.step = 1
+			sl.value = t[k]
+			sl.custom_minimum_size = Vector2(320, 40)
+			sl.size_flags_horizontal = Control.SIZE_EXPAND_FILL
+			var val_l := lbl(str(t[k]), 18)
+			val_l.size_flags_horizontal = Control.SIZE_SHRINK_END
+			sl.value_changed.connect(_on_tune.bind(f, k, val_l))
+			sr.add_child(sl)
+			sr.add_child(val_l)
+			v.add_child(sr)
+	var cv := panel("Code to send")
+	_tune_code_edit = LineEdit.new()
+	_tune_code_edit.text = tune_code()
+	_tune_code_edit.editable = true
+	cv.add_child(_tune_code_edit)
+	var br := row()
+	br.add_child(btn("Copy code", _on_tune_copy))
+	br.add_child(btn("Reset", _on_tune_reset))
+	br.add_child(btn("Back", show_lobby))
+	cv.add_child(br)
+
+func _paint_die(b: Button, f: int, scale_k: float = 1.0) -> void:
+	var gem := tbox("dice/gem_d%d.svg" % f, 0, 0)
+	var sb: StyleBox = gem if gem != null else _box(DIE_COLORS.get(f, C_WOOD), 12)
+	for st in ["normal", "hover", "pressed", "disabled"]:
+		b.add_theme_stylebox_override(st, sb)
+	b.add_theme_stylebox_override("focus", StyleBoxEmpty.new())
+	for c in ["font_color", "font_hover_color", "font_pressed_color"]:
+		b.add_theme_color_override(c, Color.WHITE)
+	b.add_theme_color_override("font_outline_color", C_INK)
+	b.add_theme_constant_override("outline_size", int(6 * scale_k))
+	style_die_number(b, sb, f)
+	if scale_k != 1.0:
+		var t := tune_for(f)
+		if sb is StyleBoxTexture:
+			sb.content_margin_left *= scale_k
+			sb.content_margin_right *= scale_k
+			sb.content_margin_top *= scale_k
+			sb.content_margin_bottom *= scale_k
+		b.add_theme_font_size_override("font_size", int(t[2] * scale_k))
+
+func _on_tune(value: float, f: int, k: int, val_l: Label) -> void:
+	var t: Array = tune_for(f).duplicate()
+	t[k] = int(value)
+	die_tune[f] = t
+	val_l.text = str(int(value))
+	for b in _tune_previews.get(f, []):
+		_paint_die(b, f, 2.0 if b.custom_minimum_size.x > 100 else 1.0)
+	_tune_code_edit.text = tune_code()
+	var cf := ConfigFile.new()
+	for kk in die_tune:
+		cf.set_value("dice", "d%d" % kk, die_tune[kk])
+	cf.save(TUNE_PATH)
+
+func _on_tune_copy() -> void:
+	DisplayServer.clipboard_set(tune_code())
+	_tune_code_edit.select_all()
+	toast("Code copied: paste it in the chat with Claudio")
+
+func _on_tune_reset() -> void:
+	die_tune = DIE_TUNE_DEFAULT.duplicate(true)
+	var cf := ConfigFile.new()
+	for kk in die_tune:
+		cf.set_value("dice", "d%d" % kk, die_tune[kk])
+	cf.save(TUNE_PATH)
+	show_tuner()
 
 # ---------- effects (animations + sound) ----------
 
@@ -1098,7 +1337,7 @@ func _me() -> Array:
 func _on_create_online() -> void:
 	toast("Opening a room...")
 	var me := _me()
-	var err: String = await ensure_online().create(lobby["size"], me[0], me[1], me[2])
+	var err: String = await ensure_online().create(MODES[lobby["mode"]]["size"], me[0], me[1], me[2], MODES[lobby["mode"]]["givens"], MODES[lobby["mode"]]["q"])
 	if err != "":
 		toast(err)
 		return

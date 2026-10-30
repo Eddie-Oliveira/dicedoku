@@ -27,7 +27,7 @@ func _run() -> void:
 	ui.build()
 	await snap("01_lobby")
 	var seats := [{"name": "Ana", "pet": "cat", "cls": "wizard"}, {"name": "Bob", "pet": "dog", "cls": "knight"}, {"name": "Cy", "pet": "fox", "cls": "rogue"}]
-	ui.start_game(9, seats, 1582125694, 3)
+	ui.start_game(9, seats, 1582125694, 3, 32, "even")
 	await snap("02_pass")
 	ui.show_game()
 	var g: Game = ui.game
@@ -43,12 +43,18 @@ func _run() -> void:
 			ui._on_die(i)
 			break
 	await snap("04_placing")
-	await snap("05_shop", 1000)
-	await snap("06_party", 4000)
+	ui.open_drawer("shop")
+	await snap("05_shop")
+	ui.open_drawer("party")
+	await snap("06_party")
+	ui.toggle_drawer("party")
 	# phone-sized window: every grid line must still show
 	root.size = Vector2i(390, 844)
 	await snap("08_board_phone")
 	root.size = Vector2i(720, 1280)
+	ui.show_tuner()
+	await snap("09_tuner")
+	ui.show_game()
 	g.over = true
 	g.players[0].done = true
 	g.players[0].turn = 18

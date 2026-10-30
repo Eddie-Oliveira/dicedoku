@@ -105,3 +105,17 @@ func test_host_edits_bots(t) -> void:
 	t.check((await guest.remove_seat(gk[1])) == "", "guest cannot remove (no-op)")
 	await host.poll()
 	t.check(host.seats_sorted().size() == 3, "seat still there after guest attempt")
+
+func test_online_difficulty(t) -> void:
+	var fake = Fake.new()
+	var host := Online.new(fake, "uA")
+	var guest := Online.new(fake, "uB")
+	await host.create(9, "Ana", "cat", "wizard", 32, "even")
+	await guest.join(host.code, "Bob", "dog", "knight")
+	await host.start()
+	await sync([host, guest])
+	var a: PlayerState = host.game.players[0]
+	var b: PlayerState = guest.game.players[1]
+	t.check(Puzzle.filled(a.puz) == Puzzle.filled(b.puz) and Puzzle.filled(a.puz) <= 34, "both seats get the chosen difficulty (%d)" % Puzzle.filled(a.puz))
+	t.check(Puzzle.digit_counts(a.puz, 9)[9] == Puzzle.digit_counts(b.puz, 9)[9], "same number of given 9s for both seats")
+	t.check(host.game.players[1].puz == guest.game.players[1].puz, "devices agree")

@@ -131,7 +131,7 @@ func test_board_layout(t) -> void:
 func test_human_with_bots(t) -> void:
 	var ui = make_ui(t)
 	ui.lobby["count"] = 3
-	ui.lobby["size"] = 6
+	ui.lobby["mode"] = 0
 	ui.lobby["types"] = [0, 2, 3, 0]
 	ui.start_from_lobby()
 	t.check(ui.screen == "game", "one human: no pass screen")
@@ -155,4 +155,29 @@ func test_human_with_bots(t) -> void:
 		guard += 1
 		ui_turn(ui)
 	t.check(ui.screen == "results", "human + bots game reaches results")
+	ui.queue_free()
+
+func test_modes_drawer_tuner(t) -> void:
+	var ui = make_ui(t)
+	t.check(ui.MODES.size() == 5 and ui.MODES[0]["size"] == 4, "blitz + four 9x9 levels, no 6x6")
+	ui.lobby["count"] = 1
+	ui.lobby["mode"] = 4
+	ui.start_from_lobby()
+	t.check(ui.game.size == 9 and Puzzle.filled(ui.game.players[0].puz) <= 30, "Legend starts with about 28 numbers (%d)" % Puzzle.filled(ui.game.players[0].puz))
+	t.check(ui.screen == "game" and ui.tabbar.visible and not ui.drawer.visible, "tabs shown, drawer closed")
+	t.check(ui.find_child("cell_0", true, false) != null, "board visible")
+	ui.toggle_drawer("shop")
+	t.check(ui.drawer.visible and ui.drawer_open == "shop" and ui.drawer_box.get_child_count() >= 2, "shop drawer opens")
+	ui.toggle_drawer("party")
+	t.check(ui.drawer.visible and ui.drawer_open == "party", "switch to party")
+	ui.toggle_drawer("party")
+	t.check(not ui.drawer.visible, "tap again closes")
+	ui.show_tuner()
+	t.check(ui.screen == "tuner" and ui._tune_previews.size() == 4, "tuner shows all four dice")
+	ui._on_tune(-9.0, 6, 1, Label.new())
+	t.check(ui.tune_for(6)[1] == -9 and "d6=0,-9,40" in ui.tune_code(), "slider changes the d6 code")
+	ui._on_tune_reset()
+	t.check(ui.tune_for(6) == [0, -6, 40], "reset")
+	ui.show_lobby()
+	t.check(not ui.tabbar.visible, "tabs hidden outside the game")
 	ui.queue_free()

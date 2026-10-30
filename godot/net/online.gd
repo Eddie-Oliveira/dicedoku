@@ -117,7 +117,7 @@ func started() -> bool:
 	return bool(room.get("started", false))
 
 ## Creates a room and seats the host. Returns "" or an error message.
-func create(size: int, pname: String, pet: String, cls: String = "") -> String:
+func create(size: int, pname: String, pet: String, cls: String = "", givens: int = -1, qmode: String = "") -> String:
 	for attempt in 4:
 		var c := new_code()
 		var r: Dictionary = await db.req(GET, "rooms/" + c + "/cfg")
@@ -128,7 +128,7 @@ func create(size: int, pname: String, pet: String, cls: String = "") -> String:
 			break
 	if code == "":
 		return "Could not find a free room code"
-	var cfg := {"size": size, "seed": randi() % 2147483647, "dice_seed": randi() % 2147483647, "host": uid,
+	var cfg := {"size": size, "givens": givens, "mode": qmode, "seed": randi() % 2147483647, "dice_seed": randi() % 2147483647, "host": uid,
 		"created": int(Time.get_unix_time_from_system())}
 	room = {"cfg": cfg, "started": false, "seats": {seat_key(): {"name": pname, "pet": pet, "cls": cls, "uid": uid, "bot": ""}}}
 	var w: Dictionary = await db.req(PUT, "rooms/" + code, room)
@@ -241,7 +241,7 @@ func _maybe_start() -> void:
 		seats.append({"name": ss[i]["name"], "pet": ss[i]["pet"], "cls": ss[i].get("cls", ""), "bot": ss[i].get("bot", "")})
 		if ss[i].get("uid", "") == uid:
 			my_seat = i
-	game = Game.new(int(cfg["size"]), int(cfg["seed"]), seats, int(cfg["dice_seed"]))
+	game = Game.new(int(cfg["size"]), int(cfg["seed"]), seats, int(cfg["dice_seed"]), int(cfg.get("givens", -1)), str(cfg.get("mode", "")))
 	applied = 0
 	last_change = Time.get_ticks_msec()
 
