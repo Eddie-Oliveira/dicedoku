@@ -54,6 +54,12 @@ func apply(act: Dictionary) -> Dictionary:
 			return upgrade(int(act["i"]))
 		"end":
 			return end_turn()
+		"botify":
+			var s := int(act["s"])
+			if s < 0 or s >= players.size() or players[s].bot != "":
+				return _r(false)
+			players[s].bot = "normal"
+			return _r(true, "%s's seat is now played by a bot" % players[s].name)
 	return _r(false)
 
 static func _r(ok: bool, msg: String = "") -> Dictionary:

@@ -17,6 +17,11 @@ const DIE_COLORS := {4: Color("#2A9D8F"), 6: Color("#C0392B"), 8: Color("#2E5EAA
 const KIND_TAGS := {"mirror": " Mirror", "safe": " Safe", "golden": " Gold", "loaded": " Loaded"}
 const SIZES := [4, 6, 9]
 const A := "res://assets/"
+const FIREBASE_URL := "https://dicedoku-ac99f-default-rtdb.firebaseio.com"
+var online: Online = null
+var online_backend = null   # tests inject a fake backend here
+var join_code := ""
+var _idle_shown := false
 var _tex_cache := {}
 
 var game: Game
@@ -89,7 +94,10 @@ func build() -> void:
 	show_lobby()
 
 func _process(delta: float) -> void:
-	if is_bot_turn() and (screen == "game" or screen == "pass"):
+	if is_online() and screen == "game" and online.can_replace_idle() != _idle_shown:
+		_idle_shown = online.can_replace_idle()
+		show_game()
+	if is_bot_turn() and (screen == "game" or screen == "pass") and (not is_online() or online.host):
 		bot_wait -= delta
 		if bot_wait <= 0.0:
 			bot_wait = BOT_DELAY
@@ -300,6 +308,19 @@ func show_lobby() -> void:
 		pr.add_child(ot)
 		v.add_child(pr)
 	v.add_child(btn("Start adventure", start_from_lobby))
+	var o := panel("Play online")
+	o.add_child(lbl("Uses the first player's name and pet. Bots can be added in the room.", 16, C_STONE))
+	o.add_child(btn("Create online room", _on_create_online))
+	var jr := row()
+	var ce := LineEdit.new()
+	ce.placeholder_text = "Room code"
+	ce.max_length = 5
+	ce.text = join_code
+	ce.size_flags_horizontal = Control.SIZE_EXPAND_FILL
+	ce.text_changed.connect(func(t: String) -> void: join_code = t)
+	jr.add_child(ce)
+	jr.add_child(btn("Join", _on_join_online))
+	o.add_child(jr)
 	var h := panel("How to play")
 	h.add_child(lbl("Take turns on one device. On your turn roll your dice up to 3 times (tap dice to hold them), then lock. Tap a die, then a cell: it only counts if that number belongs there. 3 mistakes and you are out. Earn gold and shop at Rook's: whetstones (d4 > d6 > d8 > d10), extra dice with powers, and curses for your rivals. A d10 shows 0-9 and its 0 is wild. Lowest turns + 2 x mistakes wins.", 18))
 
@@ -353,7 +374,7 @@ func refresh() -> void:
 		sel = -1
 		upgrade_mode = false
 		target = -1
-		if not is_bot_turn() and human_count() > 1:
+		if not is_online() and not is_bot_turn() and human_count() > 1:
 			show_pass()
 		else:
 			show_game()
@@ -366,7 +387,20 @@ func after(res: Dictionary) -> void:
 
 ## Every human or bot action goes through here (online play will also send it to the room).
 func act(a: Dictionary) -> Dictionary:
+	if is_online():
+		return online.act(a)
 	return game.apply(a)
+
+func is_online() -> bool:
+	return online != null and online.code != ""
+
+## Human input allowed now: offline = not a bot's turn; online = my own seat's turn.
+func can_input() -> bool:
+	if game == null or game.over:
+		return false
+	if is_online():
+		return online.my_turn() and game.current().bot == ""
+	return not is_bot_turn()
 
 func is_bot_turn() -> bool:
 	return game != null and not game.over and game.current().bot != ""
@@ -423,6 +457,16 @@ func show_game() -> void:
 	banner.add_child(portrait(p.pet, 64))
 	banner.add_child(lbl(who, 28, C_WOOD))
 	body.add_child(banner)
+	if is_online():
+		var me_name: String = game.players[online.my_seat].name if online.my_seat >= 0 else "?"
+		var line := "Online room %s  ·  you are %s" % [online.code, me_name]
+		if not online.my_turn():
+			line += "  ·  waiting for %s..." % p.name
+		if online.error != "":
+			line += "  ·  " + online.error
+		body.add_child(lbl(line, 18, C_CURSE if online.error != "" else C_STONE))
+		if online.can_replace_idle():
+			body.add_child(btn("%s seems away: let a bot play their seat" % p.name, _on_replace_idle))
 	if not p.pending.is_empty() and not p.fxd:
 		body.add_child(lbl("A curse will hit your first roll!", 20, C_CURSE))
 	_board(p)
@@ -430,7 +474,7 @@ func show_game() -> void:
 	_dice(p)
 	_shop(p)
 	_players()
-	body.add_child(btn("Quit to lobby", show_lobby))
+	body.add_child(btn("Quit to lobby", _leave_online))
 
 func _phase(p: PlayerState) -> String:
 	if p.bot != "":
@@ -534,7 +578,7 @@ func _dice(p: PlayerState) -> void:
 			extra = " wild"
 		elif game.is_useless(p, i):
 			extra = " done"
-		b.text = "%s\nd%d%s%s" % [Rules.face_label(val, f), f, tag, extra]
+		b.text = Rules.face_label(val, f)
 		var col: Color = DIE_COLORS.get(f, C_WOOD)
 		if game.is_dead(p, i) or game.is_useless(p, i):
 			col = C_STONE
@@ -554,7 +598,7 @@ func _dice(p: PlayerState) -> void:
 		for st in ["normal", "hover", "pressed", "disabled"]:
 			b.add_theme_stylebox_override(st, sb)
 		b.add_theme_stylebox_override("focus", StyleBoxEmpty.new())
-		b.add_theme_font_size_override("font_size", 22)
+		b.add_theme_font_size_override("font_size", 40)
 		for c in ["font_color", "font_hover_color", "font_pressed_color"]:
 			b.add_theme_color_override(c, Color.WHITE)
 		b.add_theme_color_override("font_outline_color", C_INK)
@@ -571,7 +615,13 @@ func _dice(p: PlayerState) -> void:
 		rs.set_corner_radius_all(14)
 		rs.set_content_margin_all(3)
 		ring.add_theme_stylebox_override("panel", rs)
-		ring.add_child(b)
+		var dv := VBoxContainer.new()
+		dv.add_theme_constant_override("separation", 0)
+		dv.add_child(b)
+		var cap := lbl("d%d%s%s" % [f, tag, extra], 15, C_INK)
+		cap.horizontal_alignment = HORIZONTAL_ALIGNMENT_CENTER
+		dv.add_child(cap)
+		ring.add_child(dv)
 		flow.add_child(ring)
 	v.add_child(flow)
 	v.add_child(lbl(_phase(p), 20, C_WOOD))
@@ -678,36 +728,137 @@ func show_results() -> void:
 		rr.add_child(lbl(s, 22))
 		v.add_child(rr)
 		place += 1
-	body.add_child(btn("New game", show_lobby))
+	body.add_child(btn("New game", _leave_online))
+
+# ---------- online ----------
+
+func ensure_online() -> Online:
+	if online == null:
+		var backend = online_backend
+		if backend == null:
+			backend = Firebase.new(FIREBASE_URL)
+		online = Online.new(backend, "u%d%06d" % [int(Time.get_unix_time_from_system()), randi() % 1000000])
+		if backend is Node:
+			online.add_child(backend)
+		add_child(online)
+		online.changed.connect(_on_online_changed)
+	return online
+
+func _me() -> Array:
+	var nm: String = str(lobby["names"][0]).strip_edges()
+	return [nm if nm != "" else "Player", Rules.PETS[lobby["pets"][0]]]
+
+func _on_create_online() -> void:
+	toast("Opening a room...")
+	var me := _me()
+	var err: String = await ensure_online().create(lobby["size"], me[0], me[1])
+	if err != "":
+		toast(err)
+		return
+	show_online_lobby()
+
+func _on_join_online() -> void:
+	if join_code.strip_edges().length() != 5:
+		toast("Room codes have 5 letters")
+		return
+	toast("Joining...")
+	var me := _me()
+	var err: String = await ensure_online().join(join_code, me[0], me[1])
+	if err != "":
+		toast(err)
+		return
+	_on_online_changed()
+
+func _on_online_changed() -> void:
+	if not is_online():
+		return
+	if online.game != null:
+		if game != online.game:
+			game = online.game
+			shown_cur = -1
+		if screen == "game" or screen == "online_lobby" or screen == "results" or screen == "lobby":
+			refresh()
+	elif screen == "online_lobby" or screen == "lobby":
+		show_online_lobby()
+
+func show_online_lobby() -> void:
+	screen = "online_lobby"
+	clear()
+	body.add_child(lbl("Room code", 24, C_STONE))
+	body.add_child(lbl(online.code, 72, C_WOOD))
+	body.add_child(lbl("Share this code. Friends open the same link, pick a name and pet, and tap Join.", 18))
+	var v := panel("Players")
+	var seats := online.seats_sorted()
+	for s in seats:
+		var r := row()
+		r.add_child(portrait(s.get("pet", ""), 48))
+		var tag := ""
+		if s.get("bot", "") != "":
+			tag = "  (bot, %s)" % s["bot"]
+		elif s.get("uid", "") == online.room.get("cfg", {}).get("host", ""):
+			tag = "  (host)"
+		r.add_child(lbl(str(s.get("name", "?")) + tag, 22))
+		v.add_child(r)
+	if online.host:
+		if seats.size() < Online.MAX_SEATS:
+			var br := row()
+			for lv in ["easy", "normal", "hard"]:
+				br.add_child(btn("+ Bot (%s)" % lv, _on_add_bot.bind(lv)))
+			v.add_child(br)
+		v.add_child(btn("Start the game", _on_start_online, seats.size() < 2))
+	else:
+		v.add_child(lbl("Waiting for the host to start...", 20, C_STONE))
+	body.add_child(btn("Leave room", _leave_online))
+
+func _on_add_bot(level: String) -> void:
+	var err: String = await online.add_bot(level)
+	toast(err)
+	if screen == "online_lobby":
+		show_online_lobby()
+
+func _on_start_online() -> void:
+	var err: String = await online.start()
+	if err != "":
+		toast(err)
+		return
+	_on_online_changed()
+
+func _on_replace_idle() -> void:
+	after(online.replace_idle())
+
+func _leave_online() -> void:
+	if online != null:
+		online.leave()
+	show_lobby()
 
 # ---------- input ----------
 
 func _on_roll() -> void:
-	if is_bot_turn():
+	if not can_input():
 		return
 	sel = -1
 	after(act({"a": "roll"}))
 
 func _on_lock() -> void:
-	if is_bot_turn():
+	if not can_input():
 		return
 	after(act({"a": "lock"}))
 
 func _on_end() -> void:
-	if is_bot_turn():
+	if not can_input():
 		return
 	sel = -1
 	after(act({"a": "end"}))
 
 func _on_hint() -> void:
-	if is_bot_turn():
+	if not can_input():
 		return
 	var i := sel
 	sel = -1
 	after(act({"a": "hint", "i": i}))
 
 func _on_die(i: int) -> void:
-	if is_bot_turn():
+	if not can_input():
 		return
 	var p := game.current()
 	if upgrade_mode:
@@ -725,7 +876,7 @@ func _on_die(i: int) -> void:
 	show_game()
 
 func _on_cell(i: int) -> void:
-	if game == null or screen != "game" or is_bot_turn():
+	if game == null or screen != "game" or not can_input():
 		return
 	if sel < 0:
 		if game.current().lk:
@@ -736,7 +887,7 @@ func _on_cell(i: int) -> void:
 	after(act({"a": "place", "i": d, "c": i}))
 
 func _on_buy(id: String) -> void:
-	if is_bot_turn():
+	if not can_input():
 		return
 	if id == "whet":
 		if not upgrade_mode and game.current().gold < Rules.WHET:

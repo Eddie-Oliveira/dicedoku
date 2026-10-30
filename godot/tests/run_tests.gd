@@ -33,7 +33,7 @@ func _initialize() -> void:
 			var n: String = m["name"]
 			if n.begins_with("test_"):
 				current = f + "::" + n
-				suite.call(n, self)
+				await suite.call(n, self)
 				ran += 1
 	print("Ran %d tests, %d failures" % [ran, failures])
 	quit(1 if failures > 0 or ran == 0 else 0)

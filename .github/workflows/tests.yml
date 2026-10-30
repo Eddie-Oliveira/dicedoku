@@ -5,6 +5,7 @@ on:
   workflow_dispatch:
 env:
   GODOT_VERSION: "4.5-stable"
+  FIREBASE_URL: "https://dicedoku-ac99f-default-rtdb.firebaseio.com"
 jobs:
   godot-tests:
     runs-on: ubuntu-latest
