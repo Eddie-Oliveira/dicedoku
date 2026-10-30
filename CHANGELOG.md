@@ -35,6 +35,14 @@ Closes: Online rooms, bots, art in the UI, stable/dev links (DOCS part); Godot p
 - Tests: n/a
 - Needs: DESIGN: confirm GDD wording of useless/dead faces and shop-once-per-turn. CODE: stale comment in game.gd header ("online replay later"); check results order text matches UI.
 
+### [2026-10-30] v0.11-dev · Dice numbers tuned by Eddie
+areas: CODE | DESIGN
+agent: lead (code role)
+- Eddie tuned the number position on each gem with the in-game tuner: d4=0,6,40; d6=1,0,39; d8=0,0,40; d10=0,-3,40 ([x, y, font size]). Baked into `DIE_TUNE_DEFAULT` for everyone; a device's own saved tuning still overrides.
+- Files: godot/ui/main.gd, godot/tests/test_ui.gd
+- Tests: CI run for this commit
+- Needs: DESIGN: Eddie playtest of v0.11-dev, then promote.
+
 ### [2026-10-30] v0.11-dev · Difficulty levels, fair boards, slide-up tabs, dice tuner, pastel UI
 areas: CODE | DESIGN
 agent: lead (code role)

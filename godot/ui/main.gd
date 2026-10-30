@@ -929,7 +929,8 @@ func open_drawer(which: String) -> void:
 # ---------- dice number tuner ----------
 
 ## Number position on each gem: [x offset, y offset, font size]. Eddie's tuned values go here.
-const DIE_TUNE_DEFAULT := {4: [0, -6, 40], 6: [0, -6, 40], 8: [0, -6, 40], 10: [0, -6, 40]}
+## Tuned by Eddie on 2026-10-30 with the dice tuner: d4=0,6,40;d6=1,0,39;d8=0,0,40;d10=0,-3,40
+const DIE_TUNE_DEFAULT := {4: [0, 6, 40], 6: [1, 0, 39], 8: [0, 0, 40], 10: [0, -3, 40]}
 var die_tune := {}
 const TUNE_PATH := "user://dice_tune.cfg"
 
@@ -940,7 +941,7 @@ func tune_for(f: int) -> Array:
 		if cf.load(TUNE_PATH) == OK:
 			for k in die_tune:
 				die_tune[k] = cf.get_value("dice", "d%d" % k, die_tune[k])
-	return die_tune.get(f, [0, -6, 40])
+	return die_tune.get(f, [0, 0, 40])
 
 ## Applies the tuned number position/size to a die button that uses the gem stylebox.
 func style_die_number(b: Button, sb: StyleBox, f: int) -> void:
