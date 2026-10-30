@@ -36,7 +36,9 @@ jobs:
         if: always()
         run: |
           grep -E "^Ran [0-9]+ tests" test-output.txt | sed 's/^/::notice title=Tests::/' || echo "::error title=Tests::runner produced no summary"
-          grep -E "^  " test-output.txt | head -30 | sed 's/^ */::notice title=Info::/' || true
+          # one annotation with all info lines (GitHub shows at most 10 annotations per step)
+          INFO=$(grep -E "^  " test-output.txt | head -60 | sed 's/^ *//' | sed ':a;N;$!ba;s/\n/%0A/g')
+          [ -n "$INFO" ] && echo "::notice title=Info::$INFO" || true
           grep -E "FAIL |SCRIPT ERROR|Parse Error" test-output.txt | head -50 | sed 's/^/::error title=Test failure::/' || true
 
   screenshots:
