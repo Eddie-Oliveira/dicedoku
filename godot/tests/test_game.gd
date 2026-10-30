@@ -431,7 +431,7 @@ func test_fx_events(t) -> void:
 	var g := mk(4, 2)
 	var p := g.current()
 	var r := g.apply({"a": "roll"})
-	var kinds := r["fx"].map(func(e): return e["t"])
+	var kinds: Array = r["fx"].map(func(e): return e["t"])
 	t.check(kinds.has("roll") and r["fx"][0]["dice"].size() == 5, "roll event lists the rolled dice")
 	r = g.apply({"a": "lock"})
 	kinds = r["fx"].map(func(e): return e["t"])
