@@ -25,6 +25,27 @@ Rules
 
 ---
 
+### [2026-10-29] v0.9-dev · Godot port: rules core, plain UI, web build
+areas: CODE | DESIGN
+agent: lead (code role)
+- Rules ported to `godot/core/` (DRng, Puzzle, Rules, PlayerState, Game) following `docs/design/v0.9.md`: no d20 (chain d4>d6>d8>d10, the d10 zero is the only wild), local pass-and-play for 1-4 seats, pets, curses go to the target's pending list.
+- Same seed gives the same puzzle and shop stock as the web prototype (parity fixtures from its JS in `godot/tests/fixtures_web_v081.json`).
+- Plain interface in `godot/ui/main.gd`: lobby (grid, 1-4 players, names, pets), pass-the-device screen, board with legal-cell highlight, dice, Rook's shop with curse target, party list, results.
+- CI: tests + screenshots of key screens pushed to branch `ci-shots` + browser build deployed to GitHub Pages.
+- Files: godot/core/*, godot/ui/*, godot/tests/*, godot/export_presets.cfg, godot/project.godot, docs/design/v0.9.md, .github/workflows/tests.yml
+- Tests: see CI run for this commit
+- Needs: ASSETS: none yet (art pass next). DESIGN: Eddie playtest of the plain build. DOCS: GDD + ARCHITECTURE from this entry.
+
+### [2026-10-29] v0.9-dev · First art pass: tavern, pets, gem dice
+areas: ASSETS
+agent: assets
+- First original SVG art pass for the v0.9 look: raccoon merchant Rook, 4 pet portraits (kitten wizard, puppy knight, fox rogue, bunny bard), gem dice d4/d6/d8/d10 with a pale number area, parchment dungeon map, stone tiles (normal + carved given), parchment 9-slice panel, wood bar, dice emblem, 15 item/curse/status icons.
+- Style guide in docs/assets/STYLE.md; asset table with licenses in docs/assets/ASSETS.md.
+- Hand-written SVG using only gradients and shapes (no text, fonts, rasters, style blocks or filters) for Godot/ThorVG import; all under 9 KB.
+- Files: godot/assets/{characters,dice,board,ui,icons}/*.svg (30 files), docs/assets/STYLE.md, docs/assets/ASSETS.md
+- Tests: every SVG rendered to PNG with sharp and checked visually; XML, size and forbidden-element checks pass for all 30.
+- Needs: CODE: in-engine check of the SVG import and the parchment_panel 9-slice (32 px margins); draw dice numbers and held/used/dead/wild states on the gem bodies.
+
 ### [2026-10-29] v0.9-dev · CI reports test results as annotations
 areas: CODE
 agent: lead

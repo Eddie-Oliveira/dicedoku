@@ -341,7 +341,7 @@ func upgrade(i: int) -> Dictionary:
 	var old: int = p.df[i]
 	p.df[i] = Rules.UPGRADES[k + 1]
 	p.gold -= Rules.WHET
-	return _r(true, "d%d → d%d" % [old, p.df[i]])
+	return _r(true, "d%d upgraded to d%d" % [old, p.df[i]])
 
 func _advance() -> void:
 	var n := players.size()

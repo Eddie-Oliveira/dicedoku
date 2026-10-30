@@ -14,7 +14,7 @@ func check(cond: bool, msg: String) -> void:
 	if not cond:
 		fail(msg)
 
-func _init() -> void:
+func _initialize() -> void:
 	var ran := 0
 	var dir := DirAccess.open("res://tests")
 	var files := []

@@ -1,0 +1,22 @@
+<svg xmlns="http://www.w3.org/2000/svg" width="128" height="128" viewBox="0 0 128 128">
+<defs>
+<radialGradient id="body" cx="0.4" cy="0.35" r="0.8"><stop offset="0" stop-color="#4FD3C4"/><stop offset="0.6" stop-color="#1A9A8E"/><stop offset="1" stop-color="#0C5A55"/></radialGradient>
+<linearGradient id="table" x1="0" y1="0" x2="1" y2="1"><stop offset="0" stop-color="#ECFFFB"/><stop offset="1" stop-color="#BDEFE6"/></linearGradient>
+<radialGradient id="glow" cx="0.5" cy="0.6" r="0.5"><stop offset="0.6" stop-color="#5FE0D0" stop-opacity="0.35"/><stop offset="1" stop-color="#5FE0D0" stop-opacity="0"/></radialGradient>
+<clipPath id="c"><path d="M64 6 L124 114 Q126 120 118 120 H10 Q2 120 4 114 Z"/></clipPath>
+</defs>
+<circle cx="64" cy="70" r="62" fill="url(#glow)"/>
+<path d="M64 6 L124 114 Q126 120 118 120 H10 Q2 120 4 114 Z" fill="url(#body)"/>
+<g clip-path="url(#c)">
+<path d="M64 6 L74 40 H54 Z" fill="#8BEBDD" opacity="0.8"/>
+<path d="M64 6 L54 40 L22 100 L4 116 Z" fill="#5CD4C5" opacity="0.6"/>
+<path d="M64 6 L74 40 L106 100 L124 116 Z" fill="#11756D" opacity="0.6"/>
+<path d="M4 120 L22 100 H106 L124 120 Z" fill="#0A4A46" opacity="0.7"/>
+<path d="M64 6 L54 40 M64 6 L74 40 M4 118 L24 100 M124 118 L104 100" stroke="#D6FFF8" stroke-width="2" opacity="0.6"/>
+</g>
+<path d="M64 6 L124 114 Q126 120 118 120 H10 Q2 120 4 114 Z" fill="none" stroke="#3B2A1A" stroke-width="4" stroke-linejoin="round"/>
+<path d="M56 40 H72 L104 96 Q106 102 100 102 H28 Q22 102 24 96 Z" fill="url(#table)" stroke="#0F5E5C" stroke-width="2" stroke-linejoin="round"/>
+<path d="M52 28 L40 50" stroke="#FFFFFF" stroke-width="4" stroke-linecap="round" opacity="0.85"/>
+<circle cx="35" cy="60" r="2.5" fill="#FFFFFF" opacity="0.9"/>
+<path d="M108 66 l2.5 6 l6 2.5 l-6 2.5 l-2.5 6 l-2.5 -6 l-6 -2.5 l6 -2.5 Z" fill="#FFF4D6" opacity="0.9"/>
+</svg>

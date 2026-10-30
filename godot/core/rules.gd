@@ -20,7 +20,7 @@ const SHOP := [
 	{"id": "d6", "n": "Extra d6", "d": "Adds a d6 to your pool", "c": 4, "f": 6, "k": "std", "icon": "extra_die"},
 	{"id": "d8", "n": "Extra d8", "d": "Adds a d8 to your pool", "c": 6, "f": 8, "k": "std", "icon": "extra_die"},
 	{"id": "d10", "n": "Extra d10", "d": "Adds a d10 to your pool", "c": 8, "f": 10, "k": "std", "icon": "extra_die"},
-	{"id": "mir", "n": "Mirror d6", "d": "Also places N+1−value", "c": 6, "f": 6, "k": "mirror", "icon": "mirror"},
+	{"id": "mir", "n": "Mirror d6", "d": "Also places N+1-value", "c": 6, "f": 6, "k": "mirror", "icon": "mirror"},
 	{"id": "safe", "n": "Safe d6", "d": "A miss costs no mistake", "c": 5, "f": 6, "k": "safe", "icon": "safe"},
 	{"id": "gold", "n": "Golden d6", "d": "+2 gold per hit", "c": 5, "f": 6, "k": "golden", "icon": "golden"},
 	{"id": "load", "n": "Loaded d6", "d": "Rolls twice, keeps a useful face", "c": 7, "f": 6, "k": "loaded", "icon": "loaded"},
@@ -79,5 +79,5 @@ static func is_dead(v: int, faces: int, n: int) -> bool:
 
 static func face_label(v: int, faces: int) -> String:
 	if v == 0:
-		return "–"
+		return "-"
 	return "0" if is_wild(v, faces) else str(v)

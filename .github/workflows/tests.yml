@@ -35,4 +35,98 @@ jobs:
         if: always()
         run: |
           grep -E "^Ran [0-9]+ tests" test-output.txt | sed 's/^/::notice title=Tests::/' || echo "::error title=Tests::runner produced no summary"
+          grep -E "^  " test-output.txt | head -30 | sed 's/^ */::notice title=Info::/' || true
           grep -E "FAIL |SCRIPT ERROR|Parse Error" test-output.txt | head -50 | sed 's/^/::error title=Test failure::/' || true
+
+  screenshots:
+    needs: godot-tests
+    if: github.ref == 'refs/heads/main'
+    runs-on: ubuntu-latest
+    timeout-minutes: 15
+    permissions:
+      contents: write
+    steps:
+      - uses: actions/checkout@v4
+      - name: Cache Godot
+        id: cache
+        uses: actions/cache@v4
+        with:
+          path: ~/godot
+          key: godot-${{ env.GODOT_VERSION }}
+      - name: Download Godot
+        if: steps.cache.outputs.cache-hit != 'true'
+        run: |
+          mkdir -p ~/godot && cd ~/godot
+          curl -fsSL -o g.zip "https://github.com/godotengine/godot/releases/download/${GODOT_VERSION}/Godot_v${GODOT_VERSION}_linux.x86_64.zip"
+          unzip -q g.zip && rm g.zip && mv Godot_v* godot && chmod +x godot
+      - name: Display and GL
+        run: command -v xvfb-run || (sudo apt-get update -qq && sudo apt-get install -y -qq xvfb libgl1-mesa-dri)
+      - name: Import project
+        run: ~/godot/godot --headless --path godot --import || true
+      - name: Render screens
+        run: |
+          set -o pipefail
+          timeout 300 xvfb-run -a -s "-screen 0 720x1280x24" ~/godot/godot --path godot --rendering-driver opengl3 --script res://tests/shots.gd 2>&1 | tee shots-output.txt
+          ls shots
+      - name: Publish screenshots to the ci-shots branch
+        run: |
+          cd shots
+          git init -q -b ci-shots
+          git -c user.name=ci -c user.email=ci@users.noreply.github.com add -A
+          git -c user.name=ci -c user.email=ci@users.noreply.github.com commit -q -m "screenshots for ${GITHUB_SHA}"
+          git push -q -f "https://x-access-token:${{ secrets.GITHUB_TOKEN }}@github.com/${{ github.repository }}" ci-shots
+
+  web:
+    needs: godot-tests
+    if: github.ref == 'refs/heads/main'
+    runs-on: ubuntu-latest
+    timeout-minutes: 20
+    permissions:
+      contents: read
+      pages: write
+      id-token: write
+    environment:
+      name: github-pages
+      url: ${{ steps.deploy.outputs.page_url }}
+    steps:
+      - uses: actions/checkout@v4
+      - name: Cache Godot
+        id: cache
+        uses: actions/cache@v4
+        with:
+          path: ~/godot
+          key: godot-${{ env.GODOT_VERSION }}
+      - name: Download Godot
+        if: steps.cache.outputs.cache-hit != 'true'
+        run: |
+          mkdir -p ~/godot && cd ~/godot
+          curl -fsSL -o g.zip "https://github.com/godotengine/godot/releases/download/${GODOT_VERSION}/Godot_v${GODOT_VERSION}_linux.x86_64.zip"
+          unzip -q g.zip && rm g.zip && mv Godot_v* godot && chmod +x godot
+      - name: Cache web template
+        id: tcache
+        uses: actions/cache@v4
+        with:
+          path: ~/.local/share/godot/export_templates
+          key: web-template-${{ env.GODOT_VERSION }}
+      - name: Download web template
+        if: steps.tcache.outputs.cache-hit != 'true'
+        run: |
+          cd /tmp
+          curl -fsSL -o t.tpz "https://github.com/godotengine/godot/releases/download/${GODOT_VERSION}/Godot_v${GODOT_VERSION}_export_templates.tpz"
+          unzip -q t.tpz templates/version.txt templates/web_nothreads_release.zip
+          V=$(cat templates/version.txt)
+          mkdir -p ~/.local/share/godot/export_templates/$V
+          mv templates/* ~/.local/share/godot/export_templates/$V/
+          rm t.tpz
+      - name: Import project
+        run: ~/godot/godot --headless --path godot --import || true
+      - name: Export for the browser
+        run: |
+          mkdir -p build/web
+          ~/godot/godot --headless --path godot --export-release "Web" ../build/web/index.html
+          ls -la build/web
+      - uses: actions/upload-pages-artifact@v3
+        with:
+          path: build/web
+      - id: deploy
+        uses: actions/deploy-pages@v4
