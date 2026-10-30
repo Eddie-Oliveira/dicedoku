@@ -60,13 +60,7 @@ static func forced_cells(g: Game, p: PlayerState, v: int) -> Array:
 	return out
 
 static func die_values(g: Game, p: PlayerState, i: int) -> Array:
-	var v: int = p.dv[i]
-	if v < 1 or v > g.size:
-		return []
-	var out := [v]
-	if p.dk[i] == "mirror" and g.size + 1 - v != v:
-		out.append(g.size + 1 - v)
-	return out
+	return g.die_values(p, i)
 
 ## Best cell for die i at this level, or -1.
 static func target(g: Game, p: PlayerState, i: int, level: String) -> int:

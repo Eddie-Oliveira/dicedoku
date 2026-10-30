@@ -19,7 +19,7 @@ func test_forced_cells_are_correct(t) -> void:
 				for v in range(1, n + 1):
 					for c in Bot.forced_cells(g, p, v):
 						checked += 1
-						t.check(g.sol[c] == v, "%dx%d seed %d: forced %d at %d but solution is %d" % [n, n, s, v, c, g.sol[c]])
+						t.check(p.sol[c] == v, "%dx%d seed %d: forced %d at %d but solution is %d" % [n, n, s, v, c, p.sol[c]])
 						if not placed:
 							p.grid[c] = v
 							placed = true

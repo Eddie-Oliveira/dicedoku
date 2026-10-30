@@ -28,6 +28,7 @@ var game: Game
 var screen := "lobby"
 var sel := -1
 var upgrade_mode := false
+var memo_mode := false
 var target := -1
 var shown_cur := -1
 var lobby := {"size": 6, "count": 2, "names": ["Ana", "Bob", "Cy", "Di"], "pets": [0, 1, 2, 3], "types": [0, 0, 0, 0]}
@@ -350,6 +351,7 @@ func start_game(n: int, seats: Array, seed_value: int = -1, dice_seed: int = -1)
 	game = Game.new(n, s, seats, dice_seed)
 	sel = -1
 	upgrade_mode = false
+	memo_mode = false
 	target = -1
 	shown_cur = -1
 	refresh()
@@ -373,6 +375,7 @@ func refresh() -> void:
 		shown_cur = game.cur
 		sel = -1
 		upgrade_mode = false
+		memo_mode = false
 		target = -1
 		if not is_online() and not is_bot_turn() and human_count() > 1:
 			show_pass()
@@ -477,6 +480,8 @@ func show_game() -> void:
 	body.add_child(btn("Quit to lobby", _leave_online))
 
 func _phase(p: PlayerState) -> String:
+	if memo_mode:
+		return "Scribe: tap an empty tile to memo its possible numbers"
 	if p.bot != "":
 		return "%s is thinking..." % p.name
 	if upgrade_mode:
@@ -494,7 +499,9 @@ func _board(p: PlayerState) -> void:
 	var thin := 3
 	var thick := 7
 	var px := int(min(74.0, (660.0 - thick * (n / game.bc + 1) - thin * n) / n))
-	var sv: int = p.dv[sel] if sel >= 0 and sel < p.dv.size() else 0
+	var svs := []
+	if sel >= 0 and sel < p.dv.size():
+		svs = [10] if game.is_wild(p, sel) else game.die_values(p, sel)
 	var frame := PanelContainer.new()
 	var fsb := StyleBoxFlat.new()
 	fsb.bg_color = C_INK
@@ -516,22 +523,34 @@ func _board(p: PlayerState) -> void:
 			box.add_theme_constant_override("v_separation", thin)
 			for a in game.br:
 				for c in game.bc:
-					box.add_child(_cell(p, (by * game.br + a) * n + bx * game.bc + c, px, sv))
+					box.add_child(_cell(p, (by * game.br + a) * n + bx * game.bc + c, px, svs))
 			boxes.add_child(box)
 	frame.add_child(boxes)
 	var cc := CenterContainer.new()
 	cc.add_child(frame)
 	body.add_child(cc)
 
-func _cell(p: PlayerState, i: int, px: int, sv: int) -> Button:
+func _cell(p: PlayerState, i: int, px: int, svs: Array) -> Button:
 	var v: int = p.grid[i]
-	var given: bool = game.puz[i] != 0
+	var given: bool = p.puz[i] != 0
 	var b := Button.new()
 	b.name = "cell_%d" % i
 	b.custom_minimum_size = Vector2(px, px)
 	b.text = str(v) if v != 0 else ""
+	var memo_txt := ""
+	if v == 0 and p.memo.has(i):
+		var cs := []
+		for w in game.candidates(p, i):
+			cs.append(str(w))
+		memo_txt = " ".join(PackedStringArray(cs))
+		b.text = memo_txt
+		b.autowrap_mode = TextServer.AUTOWRAP_WORD_SMART
 	var bgc := C_STONE.darkened(0.15) if given else C_STONE.lightened(0.55)
-	if v == 0 and sv > 0 and game.legal(p, i, sv):
+	var lit := false
+	for w in svs:
+		if v == 0 and game.legal(p, i, w):
+			lit = true
+	if lit:
 		bgc = C_TORCH.lightened(0.25)
 	var sb: StyleBox = StyleBoxFlat.new()
 	sb.bg_color = bgc
@@ -549,7 +568,11 @@ func _cell(p: PlayerState, i: int, px: int, sv: int) -> Button:
 	var fc := C_PARCH if given else C_TORCH
 	for st in ["font_color", "font_hover_color", "font_pressed_color"]:
 		b.add_theme_color_override(st, fc)
-	b.add_theme_font_size_override("font_size", int(px * 0.55))
+	b.add_theme_font_size_override("font_size", int(px * 0.55) if memo_txt == "" else maxi(11, int(px * 0.2)))
+	if memo_txt != "":
+		for st in ["font_color", "font_hover_color", "font_pressed_color"]:
+			b.add_theme_color_override(st, C_INK)
+		b.add_theme_constant_override("outline_size", 0)
 	b.pressed.connect(_on_cell.bind(i))
 	return b
 
@@ -593,7 +616,8 @@ func _dice(p: PlayerState) -> void:
 		var sb: StyleBox = _box(col, 12, border, bw)
 		var gem := tbox("dice/gem_d%d.svg" % f, 0, 0, Color(0.55, 0.55, 0.55) if col == C_STONE else Color.WHITE)
 		if gem != null:
-			gem.content_margin_top = 10
+			gem.content_margin_top = 0
+			gem.content_margin_bottom = 12
 			sb = gem
 		for st in ["normal", "hover", "pressed", "disabled"]:
 			b.add_theme_stylebox_override(st, sb)
@@ -638,6 +662,8 @@ func _dice(p: PlayerState) -> void:
 	r.add_child(btn("Lock", _on_lock, bt or not rolled or p.lk))
 	r.add_child(btn("End turn", _on_end, bt or not rolled))
 	r.add_child(btn("Hint", _on_hint, bt or p.hints < 1 or not p.lk or sel < 0))
+	if p.scribe > 0 or memo_mode:
+		r.add_child(btn("Done" if memo_mode else "Scribe (%d)" % p.scribe, _on_scribe, bt))
 	v.add_child(r)
 
 func _shop(p: PlayerState) -> void:
@@ -648,7 +674,7 @@ func _shop(p: PlayerState) -> void:
 	var hv := VBoxContainer.new()
 	hv.size_flags_horizontal = Control.SIZE_EXPAND_FILL
 	hv.add_child(lbl("Rook the Raccoon's shop", 26, C_WOOD))
-	hv.add_child(lbl("\"Shiny dice, fresh curses, fair-ish prices!\"", 16, C_STONE))
+	hv.add_child(lbl("How to earn gold: " + Rules.GOLD_RULES, 16, C_WOOD))
 	head.add_child(hv)
 	v.add_child(head)
 	var rv := game.rivals()
@@ -789,15 +815,26 @@ func show_online_lobby() -> void:
 	body.add_child(lbl("Share this code. Friends open the same link, pick a name and pet, and tap Join.", 18))
 	var v := panel("Players")
 	var seats := online.seats_sorted()
-	for s in seats:
+	var keys := online.seat_keys_sorted()
+	for k in keys.size():
+		var s: Dictionary = seats[k]
 		var r := row()
 		r.add_child(portrait(s.get("pet", ""), 48))
 		var tag := ""
-		if s.get("bot", "") != "":
-			tag = "  (bot, %s)" % s["bot"]
+		var is_bot: bool = s.get("bot", "") != ""
+		if is_bot:
+			tag = "  (bot)" if online.host else "  (bot, %s)" % s["bot"]
 		elif s.get("uid", "") == online.room.get("cfg", {}).get("host", ""):
 			tag = "  (host)"
 		r.add_child(lbl(str(s.get("name", "?")) + tag, 22))
+		if is_bot and online.host:
+			var lv := OptionButton.new()
+			for name_lv in ["easy", "normal", "hard"]:
+				lv.add_item(name_lv)
+			lv.select(["easy", "normal", "hard"].find(s["bot"]))
+			lv.item_selected.connect(_on_bot_level.bind(keys[k]))
+			r.add_child(lv)
+			r.add_child(btn("Remove", _on_remove_bot.bind(keys[k])))
 		v.add_child(r)
 	if online.host:
 		if seats.size() < Online.MAX_SEATS:
@@ -812,6 +849,18 @@ func show_online_lobby() -> void:
 
 func _on_add_bot(level: String) -> void:
 	var err: String = await online.add_bot(level)
+	toast(err)
+	if screen == "online_lobby":
+		show_online_lobby()
+
+func _on_bot_level(ix: int, key: String) -> void:
+	var err: String = await online.set_bot_level(key, ["easy", "normal", "hard"][ix])
+	toast(err)
+	if screen == "online_lobby":
+		show_online_lobby()
+
+func _on_remove_bot(key: String) -> void:
+	var err: String = await online.remove_seat(key)
 	toast(err)
 	if screen == "online_lobby":
 		show_online_lobby()
@@ -878,6 +927,12 @@ func _on_die(i: int) -> void:
 func _on_cell(i: int) -> void:
 	if game == null or screen != "game" or not can_input():
 		return
+	if memo_mode:
+		after(act({"a": "memo", "c": i}))
+		if game.current().scribe < 1:
+			memo_mode = false
+			show_game()
+		return
 	if sel < 0:
 		if game.current().lk:
 			toast("Pick a die first")
@@ -885,6 +940,13 @@ func _on_cell(i: int) -> void:
 	var d := sel
 	sel = -1
 	after(act({"a": "place", "i": d, "c": i}))
+
+func _on_scribe() -> void:
+	if not can_input():
+		return
+	memo_mode = not memo_mode
+	upgrade_mode = false
+	show_game()
 
 func _on_buy(id: String) -> void:
 	if not can_input():

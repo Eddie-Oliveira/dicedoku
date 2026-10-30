@@ -5,6 +5,9 @@ extends RefCounted
 var name: String
 var pet: String
 var grid: Array
+## Own solution and starting puzzle (every seat gets a transformed copy of the same puzzle).
+var sol: Array
+var puz: Array
 var df: Array = []
 var dk: Array = []
 var dv: Array = []
@@ -29,11 +32,18 @@ var pending: Array = []
 var bot := ""
 ## Turns in a row without a placement (normal bots start guessing at 3).
 var stall := 0
+## Blight dice still to turn into 1s when this seat locks.
+var blight := 0
+## Scribe quill: charges left and the tiles that show memo candidates.
+var scribe := 0
+var memo: Array = []
 
-func _init(name_: String, pet_: String, puz: Array, dice: Array) -> void:
+func _init(name_: String, pet_: String, sol_: Array, puz_: Array, dice: Array) -> void:
 	name = name_
 	pet = pet_
-	grid = puz.duplicate()
+	sol = sol_.duplicate()
+	puz = puz_.duplicate()
+	grid = puz_.duplicate()
 	df = dice.duplicate()
 	for f in df:
 		dk.append("std")

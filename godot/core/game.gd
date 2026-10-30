@@ -7,8 +7,6 @@ var size: int
 var game_seed: int
 var br: int
 var bc: int
-var sol: Array
-var puz: Array
 var players: Array = []
 var cur := 0
 var over := false
@@ -21,11 +19,13 @@ func _init(n: int, seed_value: int, seats: Array, dice_seed: int = -1) -> void:
 	game_seed = seed_value
 	br = Puzzle.GRIDS[n]["br"]
 	bc = Puzzle.GRIDS[n]["bc"]
-	var p := Puzzle.generate(n, game_seed)
-	sol = p["sol"]
-	puz = p["puz"]
-	for s in seats:
-		var ps := PlayerState.new(s["name"], s["pet"], puz, Rules.START_DICE[n])
+	var base := Puzzle.generate(n, game_seed)
+	for k in seats.size():
+		var s: Dictionary = seats[k]
+		var mine := base
+		if k > 0:
+			mine = Puzzle.transform(base["sol"], base["puz"], n, br, bc, DRng.new(game_seed * 31 + 7919 * k))
+		var ps := PlayerState.new(s["name"], s["pet"], mine["sol"], mine["puz"], Rules.START_DICE[n])
 		ps.bot = str(s.get("bot", ""))
 		players.append(ps)
 	if dice_seed >= 0:
@@ -54,6 +54,8 @@ func apply(act: Dictionary) -> Dictionary:
 			return upgrade(int(act["i"]))
 		"end":
 			return end_turn()
+		"memo":
+			return memo(int(act["c"]))
 		"botify":
 			var s := int(act["s"])
 			if s < 0 or s >= players.size() or players[s].bot != "":
@@ -91,7 +93,23 @@ func is_useless(p: PlayerState, i: int) -> bool:
 	var v: int = p.dv[i]
 	if v == 0 or Rules.is_wild(v, p.df[i]) or v > size:
 		return false
-	return count_value(p, v) == size and not (p.dk[i] == "mirror" and count_value(p, size + 1 - v) < size)
+	for w in die_values(p, i):
+		if count_value(p, w) < size:
+			return false
+	return true
+
+## Numbers die i may stand for: its value, or value -1 / value / value +1 for a Mirror die.
+func die_values(p: PlayerState, i: int) -> Array:
+	var v: int = p.dv[i]
+	if v < 1 or v > size:
+		return []
+	if p.dk[i] != "mirror":
+		return [v]
+	var out := []
+	for w in [v - 1, v, v + 1]:
+		if w >= 1 and w <= size:
+			out.append(w)
+	return out
 
 ## Cells where value v is legal by sudoku rules (for highlighting).
 func legal(p: PlayerState, cell: int, v: int) -> bool:
@@ -103,7 +121,7 @@ func fits(p: PlayerState, i: int, cell: int) -> bool:
 		return true
 	if v > size:
 		return false
-	return v == sol[cell] or (p.dk[i] == "mirror" and size + 1 - v == sol[cell])
+	return die_values(p, i).has(p.sol[cell])
 
 func _need(p: PlayerState, faces: int, x: int) -> bool:
 	if Rules.is_wild(x, faces):
@@ -111,7 +129,7 @@ func _need(p: PlayerState, faces: int, x: int) -> bool:
 	if x > size:
 		return false
 	for j in p.grid.size():
-		if p.grid[j] == 0 and sol[j] == x:
+		if p.grid[j] == 0 and p.sol[j] == x:
 			return true
 	return false
 
@@ -139,7 +157,7 @@ func _apply_curses(p: PlayerState) -> Dictionary:
 			"hex":
 				res["hex"] += 1
 			"blight":
-				res["bl"] += 2
+				p.blight += 2
 			"shackle":
 				res["sh"] = 1
 		res["msgs"].append("%s from %s!" % [nm, c["from"]])
@@ -151,13 +169,11 @@ func roll() -> Dictionary:
 	if not p.active() or p.lk or p.rolls < 1:
 		return _r(false)
 	var rolls := p.rolls
-	var bl := 0
 	var msgs := []
 	if not p.fxd:
 		p.fxd = true
 		var e := _apply_curses(p)
 		rolls = maxi(1, rolls - e["hex"])
-		bl = e["bl"]
 		p.shk = e["sh"]
 		msgs = e["msgs"]
 	var n := p.df.size()
@@ -169,31 +185,46 @@ func roll() -> Dictionary:
 		dv.append(p.dv[i] if keep else _roll_die(p, i))
 		du.append(_b(p.du, i))
 		dh.append(_b(p.dh, i))
-	if bl > 0:
+	p.dv = dv
+	p.du = du
+	p.dh = dh
+	p.rolls = rolls - 1
+	if p.rolls < 1:
+		var lm := _on_lock(p)
+		if lm != "":
+			msgs.append(lm)
+	return _r(true, " · ".join(PackedStringArray(msgs)))
+
+## Locking: unused rolls pay 1 gold each, then a pending Blight turns 2 random unplaced dice into 1s.
+func _on_lock(p: PlayerState) -> String:
+	p.lk = true
+	var msgs := []
+	if p.rolls > 0:
+		p.gold += p.rolls
+		msgs.append("+%d gold for %d unused roll%s" % [p.rolls, p.rolls, "s" if p.rolls > 1 else ""])
+		p.rolls = 0
+	if p.blight > 0:
 		var free := []
-		for i in n:
-			if not (dh[i] or du[i]):
+		for i in p.dv.size():
+			if p.dv[i] != 0 and not p.du[i]:
 				free.append(i)
 		for k in range(free.size() - 1, 0, -1):
 			var j := rng.randi_range(0, k)
 			var t = free[k]
 			free[k] = free[j]
 			free[j] = t
-		for i in free.slice(0, bl):
-			dv[i] = 1
-	p.dv = dv
-	p.du = du
-	p.dh = dh
-	p.rolls = rolls - 1
-	p.lk = p.rolls < 1
-	return _r(true, " · ".join(PackedStringArray(msgs)))
+		for i in free.slice(0, p.blight):
+			p.dv[i] = 1
+		msgs.append("Blight! %d dice turned into 1s" % mini(p.blight, free.size()))
+		p.blight = 0
+	return " · ".join(PackedStringArray(msgs))
 
 func lock() -> Dictionary:
 	var p := current()
 	if p.dv.is_empty() or p.lk or not p.active():
 		return _r(false)
-	p.lk = true
-	return _r(true, "Dice locked")
+	var m := _on_lock(p)
+	return _r(true, m if m != "" else "Dice locked")
 
 func hold(i: int) -> Dictionary:
 	var p := current()
@@ -235,11 +266,13 @@ func place(i: int, cell: int) -> Dictionary:
 	var hit := fits(p, i, cell)
 	res["hit"] = hit
 	if hit:
-		p.grid[cell] = sol[cell]
+		p.grid[cell] = p.sol[cell]
 		p.plc += 1
-		p.gold += 1 + (2 if p.dk[i] == "golden" else 0)
+		var earned := 1 + (2 if p.dk[i] == "golden" else 0)
+		p.gold += earned
+		res["msg"] = "Correct! +%d gold%s" % [earned, " (Golden die)" if earned > 1 else ""]
 		if is_wild(p, i):
-			res["msg"] = "Wild! Placed anywhere"
+			res["msg"] = "Wild! Placed anywhere, +%d gold" % earned
 	elif p.dk[i] == "safe":
 		res["msg"] = "Safe die: no mistake"
 	else:
@@ -265,13 +298,18 @@ func end_turn() -> Dictionary:
 	var b := Rules.combo(p.dv, size)
 	var pity := 0 if p.used_any() else 1
 	p.stall = 0 if p.used_any() else p.stall + 1
-	var msg := ""
+	var parts := []
 	if b > 0:
-		msg = "Combo! +%d hint%s" % [b, "s" if b > 1 else ""]
-	elif pity > 0:
-		msg = "No placements: Rook tips you 1 gold"
+		parts.append("Combo! +%d hint%s" % [b, "s" if b > 1 else ""])
+	if not p.lk and p.rolls > 0:
+		parts.append("+%d gold for %d unused roll%s" % [p.rolls, p.rolls, "s" if p.rolls > 1 else ""])
+		p.gold += p.rolls
+	if pity > 0:
+		parts.append("+1 gold: Rook tips you for a turn with no placements")
+	var msg := " · ".join(PackedStringArray(parts))
 	p.hints += b
 	p.gold += pity
+	p.blight = 0
 	p.turn += 1
 	p.bt = []
 	p.lk = false
@@ -356,9 +394,30 @@ func buy(id: String, target: int = -1) -> Dictionary:
 		p.rolls += 1
 	elif id == "ward":
 		p.ward += 1
+	elif id == "scribe":
+		p.scribe += 3
 	p.gold -= it["c"]
 	p.bt.append(id)
 	return _r(true, msg)
+
+## Scribe quill: show the possible numbers on an empty tile (uses one charge).
+func memo(cell: int) -> Dictionary:
+	var p := current()
+	if not p.active() or p.scribe < 1 or cell < 0 or cell >= p.grid.size() or p.grid[cell] != 0 or p.memo.has(cell):
+		return _r(false)
+	p.memo.append(cell)
+	p.scribe -= 1
+	return _r(true, "Memo written (%d left)" % p.scribe)
+
+## Rule-legal numbers for an empty tile (what a memo shows).
+func candidates(p: PlayerState, cell: int) -> Array:
+	var out := []
+	if p.grid[cell] != 0:
+		return out
+	for v in range(1, size + 1):
+		if legal(p, cell, v):
+			out.append(v)
+	return out
 
 ## Whetstone: upgrade die i one step along d4 > d6 > d8 > d10.
 func upgrade(i: int) -> Dictionary:

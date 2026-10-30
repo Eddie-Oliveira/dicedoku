@@ -137,3 +137,27 @@ static func filled(g: Array) -> int:
 		if v != 0:
 			c += 1
 	return c
+
+## A different-looking but equally hard copy: digits relabelled, rows shuffled within bands and bands shuffled,
+## columns within stacks and stacks shuffled, and (square boxes only) maybe transposed. Uniqueness is preserved.
+static func transform(sol: Array, puz: Array, n: int, br: int, bc: int, r: DRng) -> Dictionary:
+	var rows := []
+	for band in DRng.shuf(DRng.seq(n / br), r):
+		for y in DRng.shuf(DRng.seq(br), r):
+			rows.append(band * br + y)
+	var cols := []
+	for stack in DRng.shuf(DRng.seq(n / bc), r):
+		for x in DRng.shuf(DRng.seq(bc), r):
+			cols.append(stack * bc + x)
+	var digits := [0]
+	for d in DRng.shuf(DRng.seq(n), r):
+		digits.append(d + 1)
+	var flip := br == bc and r.next_float() < 0.5
+	var s2 := []
+	var p2 := []
+	for y in n:
+		for x in n:
+			var src: int = rows[x] * n + cols[y] if flip else rows[y] * n + cols[x]
+			s2.append(digits[sol[src]])
+			p2.append(digits[puz[src]] if puz[src] != 0 else 0)
+	return {"sol": s2, "puz": p2}

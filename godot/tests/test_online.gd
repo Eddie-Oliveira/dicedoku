@@ -56,7 +56,7 @@ func test_online_room(t) -> void:
 	t.check(host.game != null and guest.game != null and guest.my_seat == 1 and host.my_seat == 0, "both devices built the game (%s %s %d %d)" % [host.game != null, guest.game != null, guest.my_seat, host.my_seat])
 	if host.game == null or guest.game == null:
 		return
-	t.check(host.game.sol == guest.game.sol, "same puzzle on both devices")
+	t.check(host.game.players[0].sol == guest.game.players[0].sol and host.game.players[1].sol == guest.game.players[1].sol, "same puzzles on both devices")
 	t.check(not guest.act({"a": "roll"})["ok"], "guest cannot act on the host's turn")
 	await drive([host, guest], t)
 	t.check(host.game.over, "online match finishes")
@@ -86,3 +86,22 @@ func test_idle_seat_to_bot(t) -> void:
 	await sync([host, guest])
 	t.check(guest.game.players[1].bot == "normal", "guest sees the change")
 	t.check(host.my_turn() and not guest.my_turn(), "host now drives that seat")
+
+func test_host_edits_bots(t) -> void:
+	var fake = Fake.new()
+	var host := Online.new(fake, "uA")
+	await host.create(6, "Ana", "kitten_wizard")
+	await host.add_bot("easy")
+	await host.add_bot("hard")
+	var keys := host.seat_keys_sorted()
+	t.check(keys.size() == 3, "two bots added")
+	t.check((await host.set_bot_level(keys[1], "normal")) == "" and host.seats_sorted()[1]["bot"] == "normal", "bot level changed")
+	t.check((await host.remove_seat(keys[0])) == "Only bots can be removed", "host seat cannot be removed")
+	t.check((await host.remove_seat(keys[2])) == "" and host.seats_sorted().size() == 2, "bot removed")
+	var guest := Online.new(fake, "uB")
+	await guest.join(host.code, "Bob", "fox_rogue")
+	var gk := guest.seat_keys_sorted()
+	t.check(guest.seats_sorted().size() == 3 and guest.seats_sorted()[1]["bot"] == "normal", "guest sees the edited seats")
+	t.check((await guest.remove_seat(gk[1])) == "", "guest cannot remove (no-op)")
+	await host.poll()
+	t.check(host.seats_sorted().size() == 3, "seat still there after guest attempt")

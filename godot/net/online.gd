@@ -73,6 +73,39 @@ func seats_sorted() -> Array:
 		out.append(seats[k])
 	return out
 
+func seat_keys_sorted() -> Array:
+	var keys: Array = room.get("seats", {}).keys()
+	keys.sort()
+	return keys
+
+## Host only, before the start: remove a bot seat.
+func remove_seat(key: String) -> String:
+	if not host or started():
+		return ""
+	var seat: Dictionary = room.get("seats", {}).get(key, {})
+	if seat.get("bot", "") == "":
+		return "Only bots can be removed"
+	var w: Dictionary = await db.req(HTTPClient.METHOD_DELETE, "rooms/%s/seats/%s" % [code, key])
+	if not w["ok"]:
+		return "Could not remove the bot"
+	room["seats"].erase(key)
+	changed.emit()
+	return ""
+
+## Host only, before the start: change a bot seat's level.
+func set_bot_level(key: String, level: String) -> String:
+	if not host or started():
+		return ""
+	var seat: Dictionary = room.get("seats", {}).get(key, {})
+	if seat.get("bot", "") == "":
+		return ""
+	var w: Dictionary = await db.req(PATCH, "rooms/%s/seats/%s" % [code, key], {"bot": level})
+	if not w["ok"]:
+		return "Could not change the bot"
+	room["seats"][key]["bot"] = level
+	changed.emit()
+	return ""
+
 func started() -> bool:
 	return bool(room.get("started", false))
 

@@ -12,6 +12,7 @@ const MAXMIS := 3
 const PETS := ["kitten_wizard", "puppy_knight", "fox_rogue", "bunny_bard"]
 const PET_NAMES := {"kitten_wizard": "Kitten Wizard", "puppy_knight": "Puppy Knight", "fox_rogue": "Fox Rogue", "bunny_bard": "Bunny Bard"}
 const CURSES := {"hex": "Hex", "blight": "Blight", "shackle": "Shackle"}
+const GOLD_RULES := "+1 per correct number (Golden die: +2 more)  ·  +1 per unused roll when you lock or end your turn  ·  +1 for a turn with no placements"
 
 const WHETSTONE := {"id": "whet", "n": "Whetstone", "d": "Upgrade a die one step (up to d10)", "c": WHET, "icon": "whetstone"}
 ## Same ids, prices and order as the web prototype (offer parity depends on the order).
@@ -20,17 +21,18 @@ const SHOP := [
 	{"id": "d6", "n": "Extra d6", "d": "Adds a d6 to your pool", "c": 4, "f": 6, "k": "std", "icon": "extra_die"},
 	{"id": "d8", "n": "Extra d8", "d": "Adds a d8 to your pool", "c": 6, "f": 8, "k": "std", "icon": "extra_die"},
 	{"id": "d10", "n": "Extra d10", "d": "Adds a d10 to your pool", "c": 8, "f": 10, "k": "std", "icon": "extra_die"},
-	{"id": "mir", "n": "Mirror d6", "d": "Also places N+1-value", "c": 6, "f": 6, "k": "mirror", "icon": "mirror"},
+	{"id": "mir", "n": "Mirror d6", "d": "Can be placed as its value, value -1 or value +1", "c": 6, "f": 6, "k": "mirror", "icon": "mirror"},
 	{"id": "safe", "n": "Safe d6", "d": "A miss costs no mistake", "c": 5, "f": 6, "k": "safe", "icon": "safe"},
 	{"id": "gold", "n": "Golden d6", "d": "+2 gold per hit", "c": 5, "f": 6, "k": "golden", "icon": "golden"},
 	{"id": "load", "n": "Loaded d6", "d": "Rolls twice, keeps a useful face", "c": 7, "f": 6, "k": "loaded", "icon": "loaded"},
 	{"id": "hint", "n": "Hint scroll", "d": "+1 hint", "c": 6, "icon": "hint_scroll"},
 	{"id": "roll", "n": "Extra roll", "d": "One more roll this turn", "c": 3, "icon": "extra_roll"},
+	{"id": "scribe", "n": "Scribe's quill", "d": "Memo the possible numbers on 3 tiles of your choice", "c": 4, "icon": "hint_scroll"},
 ]
 const VERSUS := [
 	{"id": "hex", "n": "Hex", "d": "Rival loses 1 roll next turn", "c": 4, "x": "hex", "icon": "hex"},
-	{"id": "blight", "n": "Blight", "d": "2 dice of rival's next roll come up 1", "c": 5, "x": "blight", "icon": "blight"},
-	{"id": "shackle", "n": "Shackle", "d": "Rival can hold only 1 die next turn", "c": 4, "x": "shackle", "icon": "shackle"},
+	{"id": "blight", "n": "Blight", "d": "When the rival locks next turn, 2 of their dice turn into 1s", "c": 5, "x": "blight", "icon": "blight"},
+	{"id": "shackle", "n": "Shackle", "d": "Rival can hold only 1 die next turn", "c": 10, "x": "shackle", "icon": "shackle"},
 	{"id": "ward", "n": "Ward", "d": "Blocks the next curse aimed at you", "c": 3, "icon": "ward"},
 ]
 

@@ -51,12 +51,7 @@ func test_combo_parity(t) -> void:
 		var got := Rules.combo(_ints(case[0]), int(case[1]))
 		t.check(got == int(case[2]), "combo %s n=%s got %d want %s" % [case[0], case[1], got, case[2]])
 
-func test_offers_parity(t) -> void:
-	for case in F["offers"]:
-		var ids := []
-		for o in Rules.offers(int(case[0]), int(case[1])):
-			ids.append(o["id"])
-		t.check(ids == case[2], "offers seed %s turn %s: %s vs %s" % [case[0], case[1], ids, case[2]])
+# Shop offers stopped matching the web prototype in v0.10 (new Scribe item): only the shape is tested now.
 
 func test_offers_shape(t) -> void:
 	for turn in range(1, 200):

@@ -25,13 +25,13 @@ func locked(g: Game, faces: Array, values: Array, kinds: Array = []) -> PlayerSt
 
 func empty_cell(g: Game, p: PlayerState, want: int = -1) -> int:
 	for j in p.grid.size():
-		if p.grid[j] == 0 and (want < 0 or g.sol[j] == want):
+		if p.grid[j] == 0 and (want < 0 or p.sol[j] == want):
 			return j
 	return -1
 
 func wrong_cell(g: Game, p: PlayerState, v: int) -> int:
 	for j in p.grid.size():
-		if p.grid[j] == 0 and g.sol[j] != v:
+		if p.grid[j] == 0 and p.sol[j] != v:
 			return j
 	return -1
 
@@ -111,13 +111,13 @@ func test_wild_and_dead(t) -> void:
 	t.check(g.can_pick(1)["msg"] == "Dead face: cannot be placed", "dead message")
 	var c := empty_cell(g, p)
 	var r := g.place(0, c)
-	t.check(r["hit"] and p.grid[c] == g.sol[c] and p.mis == 0, "wild fills any cell with the right number")
+	t.check(r["hit"] and p.grid[c] == p.sol[c] and p.mis == 0, "wild fills any cell with the right number")
 
 func test_completed_numbers(t) -> void:
 	var g := mk(4, 1)
 	var p := g.current()
 	for j in 16:
-		if g.sol[j] == 1:
+		if p.sol[j] == 1:
 			p.grid[j] = 1
 	locked(g, [4, 4, 4, 4, 4], [1, 2, 2, 2, 2])
 	t.check(g.is_useless(p, 0) and not g.is_useless(p, 1), "completed number detected")
@@ -129,11 +129,14 @@ func test_abilities(t) -> void:
 	var g := mk(6, 1)
 	var p := g.current()
 	var target := empty_cell(g, p)
-	var v: int = g.sol[target]
-	locked(g, [6, 6, 6, 6, 6], [7 - v, 1, 1, 1, 1], ["mirror", "std", "std", "std", "std"])
-	t.check(g.place(0, target)["hit"], "mirror places N+1-v")
+	var v: int = p.sol[target]
+	var w := v + 1 if v < 6 else v - 1
+	locked(g, [6, 6, 6, 6, 6], [w, w, 1, 1, 1], ["mirror", "std", "std", "std", "std"])
+	t.check(g.die_values(p, 0).has(v) and g.die_values(p, 0).size() >= 2, "mirror covers value -1 / value / value +1")
+	t.check(not g.fits(p, 1, target), "a plain die with the same face does not fit")
+	t.check(g.place(0, target)["hit"], "mirror places value +-1")
 	target = empty_cell(g, p)
-	v = g.sol[target]
+	v = p.sol[target]
 	var miss := 1 if v != 1 else 2
 	locked(g, [6, 6, 6, 6, 6], [miss, 1, 1, 1, 1], ["safe", "std", "std", "std", "std"])
 	var m0 := p.mis
@@ -149,8 +152,8 @@ func test_abilities(t) -> void:
 	q.df = [10, 10]
 	q.dk = ["std", "loaded"]
 	for j in q.grid.size():
-		if g2.sol[j] != 1:
-			q.grid[j] = g2.sol[j]
+		if q.sol[j] != 1:
+			q.grid[j] = q.sol[j]
 	var a := 0
 	var b := 0
 	for k in 3000:
@@ -166,7 +169,7 @@ func test_end_turn_rewards(t) -> void:
 	g.roll()
 	var gold := p.gold
 	g.end_turn()
-	t.check(p.gold == gold + 1, "turn without placements pays 1 gold")
+	t.check(p.gold == gold + 3, "no placements +1 and 2 unused rolls +2 (got %d)" % (p.gold - gold))
 	g.roll()
 	p.dv = [3, 3, 3, 3, 3]
 	var h := p.hints
@@ -178,7 +181,7 @@ func test_hint(t) -> void:
 	var p := g.current()
 	p.hints = 1
 	var c := empty_cell(g, p)
-	locked(g, [4, 4, 4, 4, 4], [g.sol[c], 1, 1, 1, 1])
+	locked(g, [4, 4, 4, 4, 4], [p.sol[c], 1, 1, 1, 1])
 	var r := g.hint(0)
 	t.check(r["ok"] and r["hit"] and p.hints == 0 and p.mis == 0, "hint places the die correctly for free")
 	t.check(not g.hint(1)["ok"], "no hints left")
@@ -246,7 +249,10 @@ func test_curses(t) -> void:
 	g.roll(); g.end_turn()
 	b.df = [10, 10, 10, 10, 10]
 	g.roll()
-	t.check(b.dv.count(1) >= 2, "blight: at least two 1s (%s)" % [b.dv])
+	t.check(b.blight == 2, "blight waits for the lock")
+	g.roll()
+	g.lock()
+	t.check(b.dv.count(1) >= 2 and b.blight == 0, "blight hits at lock: at least two 1s (%s)" % [b.dv])
 	g.end_turn()
 	# shackle
 	a.bt = []
@@ -347,3 +353,76 @@ func test_full_bot_games(t) -> void:
 				t.check(p.mis == 0, "bot never misses")
 			t.check(g.over and all_done, "%dx%d with %d players finishes (guard %d)" % [n, n, k, res["guard"]])
 			print("  %dx%d %d players: turns %s" % [n, n, k, turns])
+
+func test_gold_for_unused_rolls(t) -> void:
+	var g := mk(4, 1)
+	var p := g.current()
+	g.roll()
+	var g0 := p.gold
+	var r := g.lock()
+	t.check(p.gold == g0 + 2 and p.rolls == 0 and "2 unused rolls" in r["msg"], "locking after 1 roll pays 2 gold")
+	g.end_turn()
+	g.roll()
+	g.roll()
+	g.roll()
+	var g1 := p.gold
+	t.check(p.lk and p.gold == g1, "auto-lock after the last roll pays nothing")
+
+func closure(g: Game, p: PlayerState) -> Array:
+	var saved := p.grid.duplicate()
+	var rounds := 0
+	while true:
+		var fill := {}
+		for v in range(1, g.size + 1):
+			for c in Bot.forced_cells(g, p, v):
+				fill[c] = v
+		if fill.is_empty():
+			break
+		for c in fill:
+			p.grid[c] = fill[c]
+		rounds += 1
+	var filled := Puzzle.filled(p.grid)
+	p.grid = saved
+	return [rounds, filled]
+
+func test_each_seat_has_own_layout(t) -> void:
+	for n in [4, 6, 9]:
+		var g := mk(n, 4, 21)
+		var cfg: Dictionary = Puzzle.GRIDS[n]
+		var base: PlayerState = g.players[0]
+		var c0 := closure(g, base)
+		for k in range(1, 4):
+			var q: PlayerState = g.players[k]
+			t.check(q.sol != base.sol and q.puz != base.puz, "%dx%d seat %d has its own layout" % [n, n, k])
+			t.check(Puzzle.filled(q.puz) == Puzzle.filled(base.puz), "same number of givens")
+			t.check(Puzzle.count(q.puz, n, cfg["br"], cfg["bc"], 2) == 1, "still a unique puzzle")
+			for i in n * n:
+				var tmp := q.sol.duplicate()
+				tmp[i] = 0
+				t.check(Puzzle.ok(tmp, n, cfg["br"], cfg["bc"], i / n, i % n, q.sol[i]), "valid solution")
+				t.check(q.puz[i] == 0 or q.puz[i] == q.sol[i], "givens match")
+			t.check(closure(g, q) == c0, "%dx%d seat %d same difficulty (deduction %s vs %s)" % [n, n, k, closure(g, q), c0])
+
+func test_scribe_memos(t) -> void:
+	var g := mk(6, 1)
+	var p := g.current()
+	p.gold = 50
+	t.check(_turn_with(g, "scribe"), "scribe appears in stock")
+	t.check(g.buy("scribe")["ok"] and p.scribe == 3, "scribe gives 3 memos")
+	var c := empty_cell(g, p)
+	t.check(g.apply({"a": "memo", "c": c})["ok"] and p.memo.has(c) and p.scribe == 2, "memo on an empty tile")
+	t.check(not g.memo(c)["ok"], "no double memo")
+	var given := p.puz.find(p.puz.filter(func(x): return x != 0)[0])
+	t.check(not g.memo(given)["ok"], "no memo on a filled tile")
+	t.check(g.candidates(p, c).has(p.sol[c]), "memo candidates include the right number")
+	var used := 1
+	for j in p.grid.size():
+		if used < 3 and p.grid[j] == 0 and not p.memo.has(j):
+			g.memo(j)
+			used += 1
+	t.check(p.scribe == 0 and not g.memo(empty_cell(g, p))["ok"], "charges run out")
+
+func test_shackle_price(t) -> void:
+	for o in Rules.VERSUS:
+		if o["id"] == "shackle":
+			t.check(o["c"] == 10, "shackle costs 10")
