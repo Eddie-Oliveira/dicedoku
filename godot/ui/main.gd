@@ -16,6 +16,14 @@ const C_OK := Color("#4E8A3E")
 const DIE_COLORS := {4: Color("#2A9D8F"), 6: Color("#C0392B"), 8: Color("#2E5EAA"), 10: Color("#7D3C98")}
 const KIND_TAGS := {"mirror": " Mirror", "safe": " Safe", "golden": " Gold", "loaded": " Loaded"}
 const SIZES := [4, 6, 9]
+const HOW_TO := [
+	["Goal", "Fill your sudoku board before your rivals. Everyone gets the same puzzle, shuffled so the numbers sit in different places. Lowest turns + 2 x mistakes wins."],
+	["Your turn", "Roll your dice up to 3 times. Tap dice to hold them between rolls. Lock when you like your dice (it locks by itself after the last roll)."],
+	["Placing", "Tap a die, then an empty tile. Glowing tiles are allowed by sudoku rules. A right number stays; a wrong one is a mistake. 3 mistakes and you are out."],
+	["Gold", Rules.GOLD_RULES],
+	["Rook's shop", "Whetstones upgrade a die (d4 > d6 > d8 > d10; 9x9 needs d10s for 7, 8, 9). Extra dice: Mirror (value -1, value or +1), Safe (misses are free), Golden (+2 gold), Loaded (rerolls useless faces). Scribe's quill memos the possible numbers on tiles. A d10 shows 0-9: its 0 is wild."],
+	["Curses", "Hex: rival loses a roll. Blight: 2 of the rival's dice turn into 1s when they lock. Shackle: rival holds only 1 die. A Ward blocks one curse."],
+]
 const A := "res://assets/"
 const FIREBASE_URL := "https://dicedoku-ac99f-default-rtdb.firebaseio.com"
 var online: Online = null
@@ -358,7 +366,9 @@ func show_lobby() -> void:
 	jr.add_child(btn("Join", _on_join_online))
 	o.add_child(jr)
 	var h := panel("How to play")
-	h.add_child(lbl("Take turns on one device. On your turn roll your dice up to 3 times (tap dice to hold them), then lock. Tap a die, then a cell: it only counts if that number belongs there. 3 mistakes and you are out. Earn gold and shop at Rook's: whetstones (d4 > d6 > d8 > d10), extra dice with powers, and curses for your rivals. A d10 shows 0-9 and its 0 is wild. Lowest turns + 2 x mistakes wins.", 18))
+	for sec in HOW_TO:
+		h.add_child(lbl(sec[0], 20, C_WOOD))
+		h.add_child(lbl(sec[1], 17))
 
 func _on_class(ix: int, seat: int) -> void:
 	lobby["classes"][seat] = ix
