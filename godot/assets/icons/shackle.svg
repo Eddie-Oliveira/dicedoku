@@ -1,3 +1,11 @@
 <svg xmlns="http://www.w3.org/2000/svg" width="64" height="64" viewBox="0 0 64 64">
-<g fill="#FFFFFF" stroke="#FFFFFF" stroke-width="7" stroke-linejoin="round" stroke-linecap="round"><rect x="4" y="22" width="26" height="20" rx="10"/><rect x="34" y="22" width="26" height="20" rx="10"/></g><rect x="5" y="23" width="24" height="18" rx="9" fill="none" stroke="#7A5C4A" stroke-width="9" stroke-linejoin="round" stroke-linecap="round"/><rect x="5" y="23" width="24" height="18" rx="9" fill="none" stroke="#C9A8EE" stroke-width="4"/><rect x="35" y="23" width="24" height="18" rx="9" fill="none" stroke="#7A5C4A" stroke-width="9" stroke-linejoin="round" stroke-linecap="round"/><rect x="35" y="23" width="24" height="18" rx="9" fill="none" stroke="#C9A8EE" stroke-width="4"/><rect x="20" y="27" width="24" height="10" rx="5" fill="#B48BE0" stroke="#7A5C4A" stroke-width="3" stroke-linejoin="round" stroke-linecap="round"/><path d="M26 32 H38" stroke="#F3EAFD" stroke-width="2.5" stroke-linecap="round"/><path d="M12 7Q13 11 17 12Q13 13 12 17Q11 13 7 12Q11 11 12 7Z" fill="#C9A8EE"/><path d="M54 49Q55 53 59 54Q55 55 54 59Q53 55 49 54Q53 53 54 49Z" fill="#C9A8EE"/>
+<g fill="none" stroke-linecap="round">
+<rect x="4" y="22" width="24" height="16" rx="8" stroke="#3B2A1A" stroke-width="9"/>
+<rect x="4" y="22" width="24" height="16" rx="8" stroke="#8E44AD" stroke-width="4.5"/>
+<rect x="36" y="22" width="24" height="16" rx="8" stroke="#3B2A1A" stroke-width="9"/>
+<rect x="36" y="22" width="24" height="16" rx="8" stroke="#8E44AD" stroke-width="4.5"/>
+<rect x="24" y="27" width="16" height="6" rx="3" stroke="#3B2A1A" stroke-width="9"/>
+<rect x="24" y="27" width="16" height="6" rx="3" stroke="#B979DD" stroke-width="4.5"/>
+</g>
+<path d="M10 6 l2 5 l5 2 l-5 2 l-2 5 l-2 -5 l-5 -2 l5 -2 Z M52 44 l2 5 l5 2 l-5 2 l-2 5 l-2 -5 l-5 -2 l5 -2 Z" fill="#C98CF0"/>
 </svg>

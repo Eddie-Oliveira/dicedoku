@@ -181,3 +181,21 @@ func test_modes_drawer_tuner(t) -> void:
 	ui.show_lobby()
 	t.check(not ui.tabbar.visible, "tabs hidden outside the game")
 	ui.queue_free()
+
+func test_lobby_howto_tab_and_tiles(t) -> void:
+	var ui = make_ui(t)
+	t.check(ui.screen == "lobby" and ui.tabbar.visible and ui.find_child("tab_howto", true, false) != null, "How to play is a tab on the lobby")
+	t.check(not ui.drawer.visible, "instructions hidden until tapped")
+	ui.toggle_drawer("howto")
+	t.check(ui.drawer.visible and ui.drawer_box.get_child_count() >= 2, "How to play slides up")
+	ui.toggle_drawer("howto")
+	t.check(not ui.drawer.visible, "and closes")
+	ui.start_game(9, seats(2), 7, 7, 36, "even")
+	var p0: PlayerState = ui.game.players[0]
+	var a: String = ui.tile_path(p0, 10, false)
+	t.check(a == ui.tile_path(p0, 10, false), "tile choice is stable")
+	var kinds := {}
+	for i in 81:
+		kinds[ui.tile_path(p0, i, false)] = true
+	t.check(kinds.size() == 1 or kinds.size() >= 4, "variants spread over the board when present (%d kinds)" % kinds.size())
+	ui.queue_free()

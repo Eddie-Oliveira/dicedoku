@@ -1,3 +1,9 @@
 <svg xmlns="http://www.w3.org/2000/svg" width="64" height="64" viewBox="0 0 64 64">
-<defs><radialGradient id="g" cx="0.38" cy="0.32" r="0.75"><stop offset="0" stop-color="#FFF8D4"/><stop offset="0.55" stop-color="#FFD66E"/><stop offset="1" stop-color="#EBAE45"/></radialGradient></defs><g fill="#FFFFFF" stroke="#FFFFFF" stroke-width="7" stroke-linejoin="round" stroke-linecap="round"><rect x="10" y="14" width="38" height="38" rx="10"/></g><rect x="10" y="14" width="38" height="38" rx="10" fill="url(#g)" stroke="#7A5C4A" stroke-width="3.5" stroke-linejoin="round" stroke-linecap="round"/><rect x="19" y="23" width="20" height="20" rx="5" fill="#FFF6D6" stroke="#7A5C4A" stroke-width="2.5" stroke-linejoin="round" stroke-linecap="round"/><circle cx="29" cy="33" r="4" fill="#F2B84B"/><path d="M15 20 Q18 17 23 17" stroke="#FFFFFF" stroke-width="3" fill="none" stroke-linecap="round"/><path d="M50 3Q51.8 10.2 59 12Q51.8 13.8 50 21Q48.2 13.8 41 12Q48.2 10.2 50 3Z" fill="#FFF6C8" stroke="#7A5C4A" stroke-width="1.8" stroke-linejoin="round" stroke-linecap="round"/><path d="M12 49Q13 53 17 54Q13 55 12 59Q11 55 7 54Q11 53 12 49Z" fill="#FFF6C8" stroke="#7A5C4A" stroke-width="1.2" stroke-linejoin="round" stroke-linecap="round"/>
+<defs><radialGradient id="g" cx="0.35" cy="0.3" r="0.8"><stop offset="0" stop-color="#FBE38C"/><stop offset="0.6" stop-color="#E2B33C"/><stop offset="1" stop-color="#A7781C"/></radialGradient></defs>
+<rect x="10" y="12" width="40" height="40" rx="9" fill="url(#g)" stroke="#3B2A1A" stroke-width="4"/>
+<rect x="17" y="19" width="26" height="26" rx="5" fill="none" stroke="#A7781C" stroke-width="2"/>
+<circle cx="30" cy="32" r="5" fill="#FFF4D6" stroke="#A7781C" stroke-width="2"/>
+<path d="M16 20 Q20 16 26 16" stroke="#FFF" stroke-width="3" stroke-linecap="round" fill="none"/>
+<path d="M52 2 l3 8 l8 3 l-8 3 l-3 8 l-3 -8 l-8 -3 l8 -3 Z" fill="#FFF4D6" stroke="#E2B33C" stroke-width="1.5"/>
+<path d="M8 50 l2 5 l5 2 l-5 2 l-2 5 l-2 -5 l-5 -2 l5 -2 Z" fill="#FFF4D6" stroke="#E2B33C" stroke-width="1.2"/>
 </svg>
