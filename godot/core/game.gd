@@ -34,11 +34,17 @@ func _init(n: int, seed_value: int, seats: Array, dice_seed: int = -1, givens_: 
 	br = Puzzle.GRIDS[n]["br"]
 	bc = Puzzle.GRIDS[n]["bc"]
 	var base := Puzzle.generate(n, game_seed, givens, mode)
+	var used := [base["sol"]]
 	for k in seats.size():
 		var s: Dictionary = seats[k]
 		var mine := base
 		if k > 0:
-			mine = Puzzle.transform(base["sol"], base["puz"], n, br, bc, DRng.new(game_seed * 31 + 7919 * k))
+			# small grids have few fair variations: retry until this seat's board differs from every other seat's
+			for attempt in 24:
+				mine = Puzzle.transform(base["sol"], base["puz"], n, br, bc, DRng.new(game_seed * 31 + 7919 * k + 104729 * attempt))
+				if not used.has(mine["sol"]):
+					break
+			used.append(mine["sol"])
 		var ps := PlayerState.new(s["name"], s["pet"], mine["sol"], mine["puz"], Rules.START_DICE[n])
 		ps.bot = str(s.get("bot", ""))
 		ps.cls = str(s.get("cls", ""))
