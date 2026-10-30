@@ -68,9 +68,27 @@ func _ready() -> void:
 	build()
 
 ## Builds the permanent nodes once; safe to call before the node is in a running tree (tests).
+const SETTINGS := "user://settings.cfg"
+
+func load_settings() -> void:
+	var cf := ConfigFile.new()
+	var lang := Lang.from_locale(OS.get_locale())
+	if cf.load(SETTINGS) == OK:
+		lang = str(cf.get_value("prefs", "lang", lang))
+		muted = bool(cf.get_value("prefs", "muted", false))
+	Lang.set_lang(lang)
+
+func save_settings() -> void:
+	var cf := ConfigFile.new()
+	cf.load(SETTINGS)
+	cf.set_value("prefs", "lang", Lang.code)
+	cf.set_value("prefs", "muted", muted)
+	cf.save(SETTINGS)
+
 func build() -> void:
 	if body != null:
 		return
+	load_settings()
 	theme = _make_theme()
 	var bg := ColorRect.new()
 	bg.color = C_PARCH
@@ -146,8 +164,20 @@ func _box(bg: Color, radius: int = 8, border: Color = C_INK, bw: int = 0) -> Sty
 	sb.content_margin_bottom = 8
 	return sb
 
+## Default font with a Chinese fallback (a subset of Noto Sans SC built by the fonts workflow).
+func _font() -> Font:
+	var path := "res://assets/fonts/NotoSansSC-subset.otf"
+	if not ResourceLoader.exists(path):
+		return null
+	var base: Font = ThemeDB.fallback_font.duplicate()
+	base.fallbacks = [load(path)]
+	return base
+
 func _make_theme() -> Theme:
 	var th := Theme.new()
+	var fnt := _font()
+	if fnt != null:
+		th.default_font = fnt
 	th.default_font_size = 22
 	th.set_color("font_color", "Label", C_INK)
 	th.set_stylebox("normal", "Button", _box(C_WOOD))
@@ -241,7 +271,7 @@ func _layer(t: Texture2D, px: int) -> TextureRect:
 	return r
 
 func hero(q: PlayerState) -> String:
-	return Rules.hero_title(q.pet, q.cls)
+	return Lang.f("HERO_TITLE", [Lang.t(Rules.PET_NAMES.get(q.pet, q.pet)), Lang.t(Rules.CLASS_NAMES.get(q.cls, ""))]).strip_edges()
 
 func img(rel: String, px: int) -> TextureRect:
 	var r := TextureRect.new()
@@ -262,7 +292,7 @@ func clear() -> void:
 
 func lbl(text: String, size: int = 22, color: Color = C_INK) -> Label:
 	var l := Label.new()
-	l.text = text
+	l.text = Lang.t(text)
 	l.add_theme_font_size_override("font_size", size)
 	l.add_theme_color_override("font_color", color)
 	l.autowrap_mode = TextServer.AUTOWRAP_WORD_SMART
@@ -271,7 +301,7 @@ func lbl(text: String, size: int = 22, color: Color = C_INK) -> Label:
 
 func btn(text: String, cb: Callable, disabled: bool = false) -> Button:
 	var b := Button.new()
-	b.text = text
+	b.text = Lang.t(text)
 	b.disabled = disabled
 	b.pressed.connect(cb)
 	return b
@@ -294,12 +324,12 @@ func panel(title: String) -> VBoxContainer:
 func toast(msg: String) -> void:
 	if msg == "":
 		return
-	toast_label.text = msg
+	toast_label.text = Lang.t(msg)
 	toast_panel.visible = true
 	toast_left = 2.8
 
 func pet_name(pet: String) -> String:
-	return Rules.PET_NAMES.get(pet, pet)
+	return Lang.t(Rules.PET_NAMES.get(pet, pet))
 
 # ---------- lobby ----------
 
@@ -312,13 +342,23 @@ func show_lobby() -> void:
 		title.add_child(img("ui/logo_dice.svg", 96))
 	title.add_child(lbl("Dicedoku", 52, C_WOOD))
 	body.add_child(title)
+	var lr := row()
+	lr.add_child(lbl("Language", 18, C_STONE))
+	var ol := OptionButton.new()
+	ol.name = "lang_picker"
+	for c in Lang.LANGS:
+		ol.add_item(Lang.NATIVE[c])
+	ol.select(Lang.LANGS.find(Lang.code))
+	ol.item_selected.connect(_on_lang)
+	lr.add_child(ol)
+	body.add_child(lr)
 	body.add_child(lbl("v0.11", 18, C_STONE))
 	var v := panel("New game")
 	var r := row()
 	r.add_child(lbl("Mode"))
 	var og := OptionButton.new()
 	for m in MODES:
-		og.add_item(m["name"])
+		og.add_item(Lang.t(m["name"]))
 	og.select(lobby["mode"])
 	og.item_selected.connect(func(ix: int) -> void: lobby["mode"] = ix)
 	r.add_child(og)
@@ -344,7 +384,7 @@ func show_lobby() -> void:
 		pr.add_child(le)
 		var ot := OptionButton.new()
 		for st in SEAT_TYPES:
-			ot.add_item(st)
+			ot.add_item(Lang.t(st))
 		ot.select(lobby["types"][i])
 		ot.item_selected.connect(_on_type.bind(i))
 		pr.add_child(ot)
@@ -369,19 +409,22 @@ func show_lobby() -> void:
 		pr2.add_child(lbl("Class", 18, C_STONE))
 		var oc2 := OptionButton.new()
 		for c in Rules.CLASSES:
-			oc2.add_item(Rules.CLASS_NAMES[c])
+			oc2.add_item(Lang.t(Rules.CLASS_NAMES[c]))
 		oc2.select(lobby["classes"][i])
 		oc2.item_selected.connect(_on_class.bind(i))
 		pr2.add_child(oc2)
 		seat.add_child(pr2)
 		v.add_child(seat)
 	v.add_child(btn("Start adventure", start_from_lobby))
+	var tb := btn("Tutorial: learn to play in 2 minutes", start_tutorial)
+	tb.name = "btn_tutorial"
+	body.add_child(tb)
 	var o := panel("Play online")
 	o.add_child(lbl("Uses the first player's name, race and class. Bots can be added in the room.", 16, C_STONE))
 	o.add_child(btn("Create online room", _on_create_online))
 	var jr := row()
 	var ce := LineEdit.new()
-	ce.placeholder_text = "Room code"
+	ce.placeholder_text = Lang.t("Room code")
 	ce.max_length = 5
 	ce.text = join_code
 	ce.size_flags_horizontal = Control.SIZE_EXPAND_FILL
@@ -418,6 +461,11 @@ func _how_to(parent: Control) -> void:
 		h.add_child(lbl(sec[0], 20, C_WOOD))
 		h.add_child(lbl(sec[1], 17))
 
+func _on_lang(ix: int) -> void:
+	Lang.set_lang(Lang.LANGS[ix])
+	save_settings()
+	show_lobby()
+
 func _on_type(ix: int, seat: int) -> void:
 	lobby["types"][seat] = ix
 	show_lobby()
@@ -447,7 +495,7 @@ func start_from_lobby() -> void:
 			var hero := Rules.random_hero(taken)
 			pet = hero[0]
 			cls = hero[1]
-		seats.append({"name": nm if nm != "" else "Player %d" % (i + 1), "pet": pet, "cls": cls, "bot": BOT_LEVELS[lobby["types"][i]]})
+		seats.append({"name": nm if nm != "" else Lang.f("Player {0}", [i + 1]), "pet": pet, "cls": cls, "bot": BOT_LEVELS[lobby["types"][i]]})
 	var m: Dictionary = MODES[lobby["mode"]]
 	start_game(m["size"], seats, -1, -1, m["givens"], m["q"])
 
@@ -534,7 +582,7 @@ func bot_step() -> void:
 	bot_fails = 0 if res.get("ok", false) else bot_fails + 1
 	var m := str(res.get("msg", ""))
 	if a["a"] in ["place", "buy", "end"] or "from" in m:
-		toast(("%s: " % p.name) + m if m != "" else "")
+		toast(Lang.f("{0}: {1}", [p.name, m]) if m != "" else "")
 	refresh()
 	play_fx(res.get("fx", []))
 
@@ -547,12 +595,12 @@ func show_pass() -> void:
 	pc.add_child(portrait(p.pet, p.cls, 240))
 	body.add_child(pc)
 	body.add_child(lbl(p.name, 52, C_WOOD))
-	body.add_child(lbl("the " + hero(p), 26))
+	body.add_child(lbl(Lang.f("the {0}", [hero(p)]), 26))
 	if not p.pending.is_empty():
 		var names := []
 		for c in p.pending:
-			names.append("%s from %s" % [Rules.CURSES.get(c["k"], "Curse"), c["from"]])
-		body.add_child(lbl("Curses waiting for you: " + ", ".join(PackedStringArray(names)), 22, C_CURSE))
+			names.append(Lang.f("{0} from {1}", [Lang.t(Rules.CURSES.get(c["k"], "Curse")), c["from"]]))
+		body.add_child(lbl(Lang.f("Curses waiting for you: {0}", [", ".join(PackedStringArray(names))]), 22, C_CURSE))
 	body.add_child(btn("I'm ready", _on_ready))
 
 # ---------- game ----------
@@ -561,25 +609,26 @@ func show_game() -> void:
 	screen = "game"
 	clear()
 	var p := game.current()
-	var who := "%s the %s  -  turn %d" % [p.name, hero(p), p.turn]
+	var who := Lang.f("{0} the {1}  -  turn {2}", [p.name, hero(p), p.turn])
 	if p.bot != "":
-		who += "  (bot, %s)" % p.bot
+		who += Lang.f("  (bot, {0})", [Lang.t(p.bot)])
 	var banner := row()
 	banner.add_child(portrait(p.pet, p.cls, 80))
 	banner.add_child(lbl(who, 28, C_WOOD))
 	body.add_child(banner)
 	if is_online():
 		var me_name: String = game.players[online.my_seat].name if online.my_seat >= 0 else "?"
-		var line := "Online room %s  ·  you are %s" % [online.code, me_name]
+		var line := Lang.f("Online room {0}  ·  you are {1}", [online.code, me_name])
 		if not online.my_turn():
-			line += "  ·  waiting for %s..." % p.name
+			line += Lang.f("  ·  waiting for {0}...", [p.name])
 		if online.error != "":
 			line += "  ·  " + online.error
 		body.add_child(lbl(line, 18, C_CURSE if online.error != "" else C_STONE))
 		if online.can_replace_idle():
-			body.add_child(btn("%s seems away: let a bot play their seat" % p.name, _on_replace_idle))
+			body.add_child(btn(Lang.f("{0} seems away: let a bot play their seat", [p.name]), _on_replace_idle))
 	if not p.pending.is_empty() and not p.fxd:
 		body.add_child(lbl("A curse will hit your first roll!", 20, C_CURSE))
+	_tut_panel()
 	_board(p)
 	_tracker(p)
 	_dice(p)
@@ -596,7 +645,7 @@ func _phase(p: PlayerState) -> String:
 	if memo_mode:
 		return "Scribe: tap an empty tile to memo its possible numbers"
 	if p.bot != "":
-		return "%s is thinking..." % p.name
+		return Lang.f("{0} is thinking...", [p.name])
 	if upgrade_mode:
 		return "Whetstone: tap a die to upgrade it"
 	if p.lk:
@@ -704,7 +753,7 @@ func _tracker(p: PlayerState) -> void:
 	var parts := []
 	for k in range(1, game.size + 1):
 		parts.append("[%d]" % k if game.count_value(p, k) == game.size else str(k))
-	var l := lbl("Numbers:  " + "   ".join(PackedStringArray(parts)) + "    ([n] = complete)", 20)
+	var l := lbl(Lang.f("Numbers:  {0}    ([n] = complete)", ["   ".join(PackedStringArray(parts))]), 20)
 	l.horizontal_alignment = HORIZONTAL_ALIGNMENT_CENTER
 	body.add_child(l)
 
@@ -765,7 +814,7 @@ func _dice(p: PlayerState) -> void:
 		var dv := VBoxContainer.new()
 		dv.add_theme_constant_override("separation", 0)
 		dv.add_child(b)
-		var cap := lbl("d%d%s%s" % [f, tag, extra], 15, C_INK)
+		var cap := lbl("d%d%s%s" % [f, Lang.t(tag) if tag != "" else "", Lang.t(extra) if extra != "" else ""], 15, C_INK)
 		cap.horizontal_alignment = HORIZONTAL_ALIGNMENT_CENTER
 		dv.add_child(cap)
 		ring.add_child(dv)
@@ -773,23 +822,29 @@ func _dice(p: PlayerState) -> void:
 	flow.name = "dice_row"
 	v.add_child(flow)
 	v.add_child(lbl(_phase(p), 20, C_WOOD))
-	var info := "Rolls left %d  ·  Mistakes %d/%d  ·  Hints %d  ·  Gold %d" % [p.rolls, p.mis, Rules.MAXMIS, p.hints, p.gold]
+	var info := Lang.f("Rolls left {0}  ·  Mistakes {1}/{2}  ·  Hints {3}  ·  Gold {4}", [p.rolls, p.mis, Rules.MAXMIS, p.hints, p.gold])
 	if p.ward > 0:
-		info += "  ·  Wards %d" % p.ward
+		info += Lang.f("  ·  Wards {0}", [p.ward])
 	if p.shk > 0:
-		info += "  ·  Shackled (hold %d)" % p.shk
+		info += Lang.f("  ·  Shackled (hold {0})", [p.shk])
 	var info_l := lbl(info, 18)
 	info_l.name = "gold_info"
 	v.add_child(info_l)
 	var r := row()
 	var rolled := not p.dv.is_empty()
 	var bt := p.bot != ""
-	r.add_child(btn("Roll", _on_roll, bt or p.lk or p.rolls < 1))
-	r.add_child(btn("Lock", _on_lock, bt or not rolled or p.lk))
-	r.add_child(btn("End turn", _on_end, bt or not rolled))
+	var b_roll := btn("Roll", _on_roll, bt or p.lk or p.rolls < 1)
+	b_roll.name = "btn_roll"
+	r.add_child(b_roll)
+	var b_lock := btn("Lock", _on_lock, bt or not rolled or p.lk)
+	b_lock.name = "btn_lock"
+	r.add_child(b_lock)
+	var b_end := btn("End turn", _on_end, bt or not rolled)
+	b_end.name = "btn_end"
+	r.add_child(b_end)
 	r.add_child(btn("Hint", _on_hint, bt or p.hints < 1 or not p.lk or sel < 0))
 	if p.scribe > 0 or memo_mode:
-		r.add_child(btn("Done" if memo_mode else "Scribe (%d)" % p.scribe, _on_scribe, bt))
+		r.add_child(btn("Done" if memo_mode else Lang.f("Scribe ({0})", [p.scribe]), _on_scribe, bt))
 	v.add_child(r)
 
 func _shop(p: PlayerState) -> void:
@@ -800,7 +855,7 @@ func _shop(p: PlayerState) -> void:
 	var hv := VBoxContainer.new()
 	hv.size_flags_horizontal = Control.SIZE_EXPAND_FILL
 	hv.add_child(lbl("Rook the Raccoon's shop", 26, C_WOOD))
-	hv.add_child(lbl("How to earn gold: " + Rules.GOLD_RULES, 16, C_WOOD))
+	hv.add_child(lbl(Lang.f("How to earn gold: {0}", [Lang.t(Rules.GOLD_RULES)]), 16, C_WOOD))
 	head.add_child(hv)
 	v.add_child(head)
 	var rv := game.rivals()
@@ -826,15 +881,15 @@ func _shop(p: PlayerState) -> void:
 	for o in offers:
 		var r := row()
 		var sold: bool = o["id"] != "whet" and p.bt.has(o["id"])
-		var text := "%s - %s" % [o["n"], o["d"]]
+		var text := "%s - %s" % [Lang.t(o["n"]), Lang.t(o["d"])]
 		if o.has("x") and rv.size() == 1:
-			text += " (to %s)" % game.players[rv[0]].name
+			text += Lang.f(" (to {0})", [game.players[rv[0]].name])
 		var col := C_CURSE if (o.has("x") or o["id"] == "ward") else C_INK
 		if tex("icons/%s.svg" % o.get("icon", "")) != null:
 			r.add_child(img("icons/%s.svg" % o["icon"], 40))
 		r.add_child(lbl(text, 18, col))
 		var off: bool = p.gold < o["c"] or sold or (o["id"] == "roll" and p.lk) or (o.has("x") and rv.is_empty())
-		var label := "Sold" if sold else "%dg" % o["c"]
+		var label := "Sold" if sold else Lang.f("{0}g", [o["c"]])
 		if o["id"] == "whet" and upgrade_mode:
 			label = "Cancel"
 			off = false
@@ -848,13 +903,13 @@ func _players() -> void:
 	var n := game.size * game.size
 	for j in game.players.size():
 		var q: PlayerState = game.players[j]
-		var s := "%s%s the %s  -  %d/%d cells  ·  mistakes %d" % ["> " if j == game.cur else "", q.name, hero(q), Puzzle.filled(q.grid), n, q.mis]
+		var s := ("> " if j == game.cur else "") + Lang.f("{0} the {1}  -  {2}/{3} cells  ·  mistakes {4}", [q.name, hero(q), Puzzle.filled(q.grid), n, q.mis])
 		if q.done:
 			s += "  ·  cleared!"
 		if q.lost:
 			s += "  ·  out"
 		if not q.pending.is_empty():
-			s += "  ·  %d curse(s) waiting" % q.pending.size()
+			s += Lang.f("  ·  {0} curse(s) waiting", [q.pending.size()])
 		var pr := row()
 		pr.add_child(portrait(q.pet, q.cls, 52))
 		pr.add_child(lbl(s, 18, C_CURSE if not q.pending.is_empty() else C_INK))
@@ -870,9 +925,9 @@ func show_results() -> void:
 	var place := 1
 	for j in game.ranking():
 		var q: PlayerState = game.players[j]
-		var s := "%d. %s the %s" % [place, q.name, hero(q)]
+		var s := "%d. " % place + Lang.f("{0} the {1}", [q.name, hero(q)])
 		if q.done:
-			s += "  -  score %d (%d turns, %d mistakes)" % [q.score(), q.turn, q.mis]
+			s += Lang.f("  -  score {0} ({1} turns, {2} mistakes)", [q.score(), q.turn, q.mis])
 		elif q.lost:
 			s += "  -  out after 3 mistakes"
 		var rr := row()
@@ -881,6 +936,133 @@ func show_results() -> void:
 		v.add_child(rr)
 		place += 1
 	body.add_child(btn("New game", _leave_online))
+
+# ---------- guided tutorial (on rails) ----------
+
+## Each step allows exactly one kind of action ("next" steps wait for the Next button).
+const TUTORIAL := [
+	{"allow": "next", "text": "Welcome, adventurer! In Dicedoku you fill a sudoku board using dice. Let's play one short turn together."},
+	{"allow": "roll", "target": "btn_roll", "text": "Tap Roll to throw your dice."},
+	{"allow": "hold", "arg": 0, "target": "die_0", "text": "This first die shows a number your board needs. Tap it to hold it: held dice stay when you roll again."},
+	{"allow": "roll", "target": "btn_roll", "text": "Roll again. Only the dice you did not hold will change."},
+	{"allow": "lock", "target": "btn_lock", "text": "Happy with your dice? Tap Lock. Each roll you did not use pays 1 gold."},
+	{"allow": "pick", "arg": 0, "target": "die_0", "text": "Now tap your held die to pick it up."},
+	{"allow": "place", "target": "cell", "text": "Glowing tiles follow the sudoku rules. Tap the shining tile where this number belongs."},
+	{"allow": "next", "text": "Correct! A right number stays on the board and pays gold. A wrong tile is a mistake, and 3 mistakes knock you out."},
+	{"allow": "shop", "target": "tab_shop", "text": "Gold is spent at Rook's shop. Tap the shop tab."},
+	{"allow": "next", "close": true, "text": "Whetstones make a die bigger (d4 > d6 > d8 > d10): on 9x9 you need d10s for the 7s, 8s and 9s. Curses slow your rivals down. Tap Next to close the shop."},
+	{"allow": "end", "target": "btn_end", "text": "Tap End turn to pass the dice to the next player."},
+	{"allow": "finish", "text": "That's it! Be the first to fill your board, with as few turns and mistakes as you can. Good luck!"},
+]
+var tut := -1
+var tut_cell := -1
+var tut_vals := []
+
+## Starts the scripted 4x4 tutorial with the first player's hero.
+func start_tutorial() -> void:
+	var nm: String = str(lobby["names"][0]).strip_edges()
+	var seat := {"name": nm if nm != "" else Lang.t("Hero"), "pet": Rules.PETS[lobby["pets"][0]], "cls": Rules.CLASSES[lobby["classes"][0]], "bot": ""}
+	start_game(4, [seat], 2024, 7)
+	var p := game.current()
+	tut_cell = p.grid.find(0)
+	var v: int = p.sol[tut_cell]
+	var others := []
+	for k in range(1, 5):
+		if k != v:
+			others.append(k)
+	tut_vals = [[v, others[0], others[0], others[1], others[2]], [v, others[1], others[2], others[2], others[0]]]
+	tut = 0
+	show_game()
+
+func tut_step() -> Dictionary:
+	return TUTORIAL[tut] if tut >= 0 and tut < TUTORIAL.size() else {}
+
+## False (with a gentle nudge) when the tutorial expects a different action.
+func tut_allows(kind: String, arg: int = -1) -> bool:
+	if tut < 0:
+		return true
+	var st := tut_step()
+	var ok: bool = st.get("allow", "") == kind
+	if ok and st.has("arg"):
+		ok = int(st["arg"]) == arg
+	if ok and kind == "place":
+		ok = arg == tut_cell
+	if not ok:
+		toast("Follow the glowing hint first")
+	return ok
+
+## Called after an allowed action succeeded.
+func tut_done(kind: String) -> void:
+	if tut < 0 or tut_step().get("allow", "") != kind:
+		return
+	var p := game.current()
+	if kind == "roll":
+		var rolls_done := 0 if tut == 1 else 1
+		var vals: Array = tut_vals[rolls_done]
+		for i in p.dv.size():
+			if not (rolls_done == 1 and i == 0):
+				p.dv[i] = vals[i]
+	tut += 1
+	show_game()
+
+func _on_tut_next() -> void:
+	if tut_step().get("close", false):
+		drawer_open = ""
+	tut += 1
+	show_game()
+
+func _on_tut_finish() -> void:
+	tut = -1
+	var cf := ConfigFile.new()
+	cf.load(SETTINGS)
+	cf.set_value("prefs", "tutorial_done", true)
+	cf.save(SETTINGS)
+	show_lobby()
+
+func _tut_panel() -> void:
+	if tut < 0:
+		return
+	var st := tut_step()
+	var v := panel("")
+	v.name = "tut_panel"
+	var r := row()
+	if tex("characters/merchant_raccoon.svg") != null:
+		r.add_child(img("characters/merchant_raccoon.svg", 72))
+	var tv := VBoxContainer.new()
+	tv.size_flags_horizontal = Control.SIZE_EXPAND_FILL
+	tv.add_child(lbl(Lang.f("Tutorial {0}/{1}", [tut + 1, TUTORIAL.size()]), 16, C_STONE))
+	tv.add_child(lbl(st.get("text", ""), 20, C_WOOD))
+	r.add_child(tv)
+	v.add_child(r)
+	var br := row()
+	if st.get("allow", "") == "next":
+		br.add_child(btn("Next", _on_tut_next))
+	elif st.get("allow", "") == "finish":
+		br.add_child(btn("Finish tutorial", _on_tut_finish))
+	if st.get("allow", "") != "finish":
+		br.add_child(btn("Skip tutorial", _on_tut_finish))
+	v.add_child(br)
+	_tut_highlight.call_deferred()
+
+## Pulses the control the current step is about.
+func _tut_highlight() -> void:
+	if tut < 0 or screen != "game":
+		return
+	var tgt: String = tut_step().get("target", "")
+	if tgt == "":
+		return
+	var c := _node("cell_%d" % tut_cell if tgt == "cell" else tgt)
+	if c == null:
+		return
+	if tgt == "cell":
+		var sb := StyleBoxFlat.new()
+		sb.bg_color = C_TORCH
+		sb.set_corner_radius_all(6)
+		for stn in ["normal", "hover", "pressed"]:
+			c.add_theme_stylebox_override(stn, sb)
+	var tw := c.create_tween().set_loops(6)
+	tw.tween_property(c, "modulate", Color(1.35, 1.25, 0.8), 0.35)
+	tw.tween_property(c, "modulate", Color.WHITE, 0.35)
 
 # ---------- slide-up tabs: Rook's shop and the party ----------
 
@@ -916,14 +1098,14 @@ func _fill_drawer() -> void:
 	for c in tabbar.get_children():
 		tabbar.remove_child(c)
 		c.queue_free()
-	var bs := btn("Rook's shop  ·  %d gold" % p.gold, toggle_drawer.bind("shop"))
+	var bs := btn(Lang.f("Rook's shop  ·  {0} gold", [p.gold]), toggle_drawer.bind("shop"))
 	bs.name = "tab_shop"
 	bs.size_flags_horizontal = Control.SIZE_EXPAND_FILL
 	if tex("icons/gold_coin.svg") != null:
 		bs.icon = tex("icons/gold_coin.svg")
 		bs.expand_icon = false
 		bs.add_theme_constant_override("icon_max_width", 34)
-	var bp := btn("Party (%d)" % game.players.size(), toggle_drawer.bind("party"))
+	var bp := btn(Lang.f("Party ({0})", [game.players.size()]), toggle_drawer.bind("party"))
 	bp.name = "tab_party"
 	bp.size_flags_horizontal = Control.SIZE_EXPAND_FILL
 	tabbar.add_child(bs)
@@ -953,6 +1135,8 @@ func _fill_drawer_body() -> void:
 	drawer.visible = drawer_open != ""
 
 func toggle_drawer(which: String) -> void:
+	if tut >= 0 and screen == "game" and drawer_open != which and not tut_allows(which):
+		return
 	var opening := drawer_open != which
 	drawer_open = which if opening else ""
 	if screen == "lobby":
@@ -969,6 +1153,7 @@ func toggle_drawer(which: String) -> void:
 		tw.set_parallel(true)
 		tw.tween_property(drawer, "position:y", drawer.position.y - 120, 0.22).set_trans(Tween.TRANS_CUBIC).set_ease(Tween.EASE_OUT)
 		tw.tween_property(drawer, "modulate:a", 1.0, 0.18)
+		tut_done(which)
 
 func open_drawer(which: String) -> void:
 	drawer_open = ""
@@ -1142,6 +1327,7 @@ func sfx(n: String) -> void:
 
 func _on_mute() -> void:
 	muted = not muted
+	save_settings()
 	show_game()
 
 func _on_ready() -> void:
@@ -1158,7 +1344,7 @@ func _center(c: Control) -> Vector2:
 
 func float_text(text: String, at: Vector2, color: Color, fsize: int = 28) -> void:
 	var l := Label.new()
-	l.text = text
+	l.text = Lang.t(text)
 	l.add_theme_font_size_override("font_size", fsize)
 	l.add_theme_color_override("font_color", color)
 	l.add_theme_color_override("font_outline_color", C_INK)
@@ -1262,9 +1448,9 @@ func announce_turn() -> void:
 		return
 	var p := game.current()
 	sfx("turn")
-	var text := "%s's turn" % p.name
+	var text := Lang.f("{0}'s turn", [p.name])
 	if is_online() and online.my_turn() and p.bot == "":
-		text = "Your turn, %s!" % p.name
+		text = Lang.f("Your turn, {0}!", [p.name])
 	var box := Control.new()
 	box.size = Vector2(560, 104)
 	box.mouse_filter = Control.MOUSE_FILTER_IGNORE
@@ -1323,7 +1509,7 @@ func play_fx(list: Array) -> void:
 			"gold":
 				sfx("coin")
 				var at := _center(_node("gold_info"))
-				float_text("+%d gold (%s)" % [int(e["n"]), str(e.get("why", ""))], at, C_GOLD, 26)
+				float_text(Lang.f("+{0} gold ({1})", [int(e["n"]), Lang.t(str(e.get("why", "")))]), at, C_GOLD, 26)
 				burst("effects/coin_pop.svg", at + Vector2(-140, 0), 56)
 			"hit":
 				sfx("hit")
@@ -1332,7 +1518,7 @@ func play_fx(list: Array) -> void:
 				var at2 := _center(c)
 				burst("effects/hit_glow.svg", at2, 150, Color(1, 1, 1, 0.9))
 				sparkles(at2, 4, 34)
-				float_text("+%d gold" % int(e.get("gold", 1)), at2 - Vector2(0, 30), C_GOLD, 28)
+				float_text(Lang.f("+{0} gold", [int(e.get("gold", 1))]), at2 - Vector2(0, 30), C_GOLD, 28)
 			"miss":
 				sfx("miss")
 				var c2 := _node("cell_%d" % int(e["c"]))
@@ -1350,17 +1536,17 @@ func play_fx(list: Array) -> void:
 				screen_flash(Color(C_CURSE, 0.45))
 				burst("effects/curse_burst.svg", mid, 380, Color.WHITE, 1.0)
 				var nm := "Blight" if t == "blight" else str(Rules.CURSES.get(e.get("k", ""), "Curse"))
-				float_text(nm + "!", mid, C_CURSE, 56)
+				float_text(Lang.t(nm) + "!", mid, C_CURSE, 56)
 				for i in e.get("dice", []):
 					flash(_node("die_%d" % int(i)), Color(0.75, 0.4, 1.0), 1.0)
 			"ward":
 				sfx("ward")
 				burst("icons/ward.svg", mid, 300, Color.WHITE, 0.9)
-				float_text("Ward blocked %s!" % Rules.CURSES.get(e.get("k", ""), "a curse"), mid, Color("#4A7FB5"), 40)
+				float_text(Lang.f("Ward blocked {0}!", [Lang.t(Rules.CURSES.get(e.get("k", ""), "a curse"))]), mid, Color("#4A7FB5"), 40)
 			"cast":
 				sfx("curse")
 				burst("effects/curse_burst.svg", mid, 220, Color.WHITE, 0.7)
-				float_text("%s sent to %s!" % [Rules.CURSES.get(e.get("k", ""), "Curse"), game.players[int(e["to"])].name], mid, C_CURSE, 36)
+				float_text(Lang.f("{0} sent to {1}!", [Lang.t(Rules.CURSES.get(e.get("k", ""), "Curse")), game.players[int(e["to"])].name]), mid, C_CURSE, 36)
 			"buy", "upgrade":
 				sfx("buy")
 				if t == "upgrade":
@@ -1372,7 +1558,7 @@ func play_fx(list: Array) -> void:
 			"combo":
 				sfx("win")
 				sparkles(mid, 10, 160)
-				float_text("Combo! +%d hint%s" % [int(e["n"]), "s" if int(e["n"]) > 1 else ""], mid, C_GOLD, 44)
+				float_text(Lang.f("Combo! +{0} hints", [int(e["n"])]) if int(e["n"]) > 1 else Lang.t("Combo! +1 hint"), mid, C_GOLD, 44)
 			"win":
 				sfx("win")
 				sparkles(mid, 26, 260)
@@ -1449,14 +1635,14 @@ func show_online_lobby() -> void:
 		var tag := ""
 		var is_bot: bool = s.get("bot", "") != ""
 		if is_bot:
-			tag = "  (bot)" if online.host else "  (bot, %s)" % s["bot"]
+			tag = Lang.t("  (bot)") if online.host else Lang.f("  (bot, {0})", [Lang.t(s["bot"])])
 		elif s.get("uid", "") == online.room.get("cfg", {}).get("host", ""):
 			tag = "  (host)"
 		r.add_child(lbl(str(s.get("name", "?")) + tag, 22))
 		if is_bot and online.host:
 			var lv := OptionButton.new()
 			for name_lv in ["easy", "normal", "hard"]:
-				lv.add_item(name_lv)
+				lv.add_item(Lang.t(name_lv))
 			lv.select(["easy", "normal", "hard"].find(s["bot"]))
 			lv.item_selected.connect(_on_bot_level.bind(keys[k]))
 			r.add_child(lv)
@@ -1466,7 +1652,7 @@ func show_online_lobby() -> void:
 		if seats.size() < Online.MAX_SEATS:
 			var br := row()
 			for lv in ["easy", "normal", "hard"]:
-				br.add_child(btn("+ Bot (%s)" % lv, _on_add_bot.bind(lv)))
+				br.add_child(btn(Lang.f("+ Bot ({0})", [Lang.t(lv)]), _on_add_bot.bind(lv)))
 			v.add_child(br)
 		v.add_child(btn("Start the game", _on_start_online, seats.size() < 2))
 	else:
@@ -1502,6 +1688,7 @@ func _on_replace_idle() -> void:
 	after(online.replace_idle())
 
 func _leave_online() -> void:
+	tut = -1
 	if online != null:
 		online.leave()
 	show_lobby()
@@ -1509,24 +1696,27 @@ func _leave_online() -> void:
 # ---------- input ----------
 
 func _on_roll() -> void:
-	if not can_input():
+	if not can_input() or not tut_allows("roll"):
 		return
 	sel = -1
 	after(act({"a": "roll"}))
+	tut_done("roll")
 
 func _on_lock() -> void:
-	if not can_input():
+	if not can_input() or not tut_allows("lock"):
 		return
 	after(act({"a": "lock"}))
+	tut_done("lock")
 
 func _on_end() -> void:
-	if not can_input():
+	if not can_input() or not tut_allows("end"):
 		return
 	sel = -1
 	after(act({"a": "end"}))
+	tut_done("end")
 
 func _on_hint() -> void:
-	if not can_input():
+	if not can_input() or not tut_allows("hint"):
 		return
 	var i := sel
 	sel = -1
@@ -1541,7 +1731,12 @@ func _on_die(i: int) -> void:
 		after(act({"a": "upg", "i": i}))
 		return
 	if not p.lk:
+		if not tut_allows("hold", i):
+			return
 		after(act({"a": "hold", "i": i}))
+		tut_done("hold")
+		return
+	if not tut_allows("pick", i):
 		return
 	var chk := game.can_pick(i)
 	if not chk["ok"]:
@@ -1549,6 +1744,7 @@ func _on_die(i: int) -> void:
 		return
 	sel = -1 if sel == i else i
 	show_game()
+	tut_done("pick")
 
 func _on_cell(i: int) -> void:
 	if game == null or screen != "game" or not can_input():
@@ -1563,18 +1759,23 @@ func _on_cell(i: int) -> void:
 		if game.current().lk:
 			toast("Pick a die first")
 		return
+	if not tut_allows("place", i):
+		return
 	var d := sel
 	sel = -1
 	after(act({"a": "place", "i": d, "c": i}))
+	tut_done("place")
 
 func _on_scribe() -> void:
-	if not can_input():
+	if not can_input() or not tut_allows("scribe"):
 		return
 	memo_mode = not memo_mode
 	upgrade_mode = false
 	show_game()
 
 func _on_buy(id: String) -> void:
+	if not tut_allows("buy"):
+		return
 	if not can_input():
 		return
 	if id == "whet":

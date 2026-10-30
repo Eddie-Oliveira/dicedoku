@@ -88,7 +88,7 @@ func _apply(act: Dictionary) -> Dictionary:
 			if s < 0 or s >= players.size() or players[s].bot != "":
 				return _r(false)
 			players[s].bot = "normal"
-			return _r(true, "%s's seat is now played by a bot" % players[s].name)
+			return _r(true, Lang.f("{0}'s seat is now played by a bot", [players[s].name]))
 	return _r(false)
 
 static func _r(ok: bool, msg: String = "") -> Dictionary:
@@ -175,10 +175,10 @@ static func _b(a: Array, i: int) -> bool:
 func _apply_curses(p: PlayerState) -> Dictionary:
 	var res := {"hex": 0, "bl": 0, "sh": 0, "msgs": []}
 	for c in p.pending:
-		var nm: String = Rules.CURSES.get(c["k"], "Curse")
+		var nm: String = Lang.t(Rules.CURSES.get(c["k"], "Curse"))
 		if p.ward > 0:
 			p.ward -= 1
-			res["msgs"].append("Ward blocked %s from %s" % [nm, c["from"]])
+			res["msgs"].append(Lang.f("Ward blocked {0} from {1}", [nm, c["from"]]))
 			_fx("ward", {"k": c["k"]})
 			continue
 		_fx("curse", {"k": c["k"], "from": c["from"]})
@@ -189,7 +189,7 @@ func _apply_curses(p: PlayerState) -> Dictionary:
 				p.blight += 2
 			"shackle":
 				res["sh"] = 1
-		res["msgs"].append("%s from %s!" % [nm, c["from"]])
+		res["msgs"].append(Lang.f("{0} from {1}!", [nm, c["from"]]))
 	p.pending = []
 	return res
 
@@ -236,7 +236,7 @@ func _on_lock(p: PlayerState) -> String:
 	if p.rolls > 0:
 		p.gold += p.rolls
 		_fx("gold", {"n": p.rolls, "why": "unused rolls"})
-		msgs.append("+%d gold for %d unused roll%s" % [p.rolls, p.rolls, "s" if p.rolls > 1 else ""])
+		msgs.append(Lang.f("+{0} gold for {1} unused rolls", [p.rolls, p.rolls]) if p.rolls > 1 else Lang.t("+1 gold for 1 unused roll"))
 		p.rolls = 0
 	if p.blight > 0:
 		var free := []
@@ -251,7 +251,7 @@ func _on_lock(p: PlayerState) -> String:
 		for i in free.slice(0, p.blight):
 			p.dv[i] = 1
 		_fx("blight", {"dice": free.slice(0, p.blight)})
-		msgs.append("Blight! %d dice turned into 1s" % mini(p.blight, free.size()))
+		msgs.append(Lang.f("Blight! {0} dice turned into 1s", [mini(p.blight, free.size())]))
 		p.blight = 0
 	return " · ".join(PackedStringArray(msgs))
 
@@ -260,7 +260,7 @@ func lock() -> Dictionary:
 	if p.dv.is_empty() or p.lk or not p.active():
 		return _r(false)
 	var m := _on_lock(p)
-	return _r(true, m if m != "" else "Dice locked")
+	return _r(true, m if m != "" else Lang.t("Dice locked"))
 
 func hold(i: int) -> Dictionary:
 	var p := current()
@@ -269,9 +269,9 @@ func hold(i: int) -> Dictionary:
 	var cap := p.shk if p.shk > 0 else Rules.MAXH
 	if not p.dh[i]:
 		if is_useless(p, i):
-			return _r(false, "Number complete: reroll it")
+			return _r(false, Lang.t("Number complete: reroll it"))
 		if p.held_count() >= cap:
-			return _r(false, ("Shackled: hold only %d" % cap) if p.shk > 0 else ("Hold limit: %d dice" % cap))
+			return _r(false, Lang.f("Shackled: hold only {0}", [cap]) if p.shk > 0 else Lang.f("Hold limit: {0} dice", [cap]))
 	p.dh[i] = not p.dh[i]
 	_fx("hold", {"i": i, "on": p.dh[i]})
 	return _r(true)
@@ -281,13 +281,13 @@ func can_pick(i: int) -> Dictionary:
 	if not p.active():
 		return _r(false)
 	if not p.lk:
-		return _r(false, "Lock your dice first")
+		return _r(false, Lang.t("Lock your dice first"))
 	if i >= p.dv.size() or p.dv[i] == 0 or p.du[i]:
 		return _r(false)
 	if is_dead(p, i):
-		return _r(false, "Dead face: cannot be placed")
+		return _r(false, Lang.t("Dead face: cannot be placed"))
 	if is_useless(p, i):
-		return _r(false, "Number complete: cannot be placed")
+		return _r(false, Lang.t("Number complete: cannot be placed"))
 	return _r(true)
 
 ## Place die i on cell. Returns {"ok", "msg", "hit", "turn_over"}.
@@ -307,26 +307,26 @@ func place(i: int, cell: int) -> Dictionary:
 		p.plc += 1
 		var earned := 1 + (2 if p.dk[i] == "golden" else 0)
 		p.gold += earned
-		res["msg"] = "Correct! +%d gold%s" % [earned, " (Golden die)" if earned > 1 else ""]
+		res["msg"] = Lang.f("Correct! +{0} gold (Golden die)", [earned]) if earned > 1 else Lang.f("Correct! +{0} gold", [earned])
 		_fx("hit", {"c": cell, "gold": earned, "i": i})
 		if is_wild(p, i):
-			res["msg"] = "Wild! Placed anywhere, +%d gold" % earned
+			res["msg"] = Lang.f("Wild! Placed anywhere, +{0} gold", [earned])
 	elif p.dk[i] == "safe":
-		res["msg"] = "Safe die: no mistake"
+		res["msg"] = Lang.t("Safe die: no mistake")
 		_fx("safe", {"c": cell})
 	else:
 		p.mis += 1
-		res["msg"] = "Wrong spot: +1 mistake"
+		res["msg"] = Lang.t("Wrong spot: +1 mistake")
 		_fx("miss", {"c": cell})
 		if p.mis >= Rules.MAXMIS:
 			p.lost = true
-			res["msg"] = "Third mistake: %s is out!" % p.name
+			res["msg"] = Lang.f("Third mistake: {0} is out!", [p.name])
 			_fx("out")
 	if not p.grid.has(0):
 		p.done = true
 		finish_seq += 1
 		p.fin = finish_seq
-		res["msg"] = "%s cleared the dungeon!" % p.name
+		res["msg"] = Lang.f("{0} cleared the dungeon!", [p.name])
 		_fx("win")
 	res["turn_over"] = not p.active()
 	if res["turn_over"]:
@@ -342,12 +342,12 @@ func end_turn() -> Dictionary:
 	p.stall = 0 if p.used_any() else p.stall + 1
 	var parts := []
 	if b > 0:
-		parts.append("Combo! +%d hint%s" % [b, "s" if b > 1 else ""])
+		parts.append(Lang.f("Combo! +{0} hints", [b]) if b > 1 else Lang.t("Combo! +1 hint"))
 	if not p.lk and p.rolls > 0:
-		parts.append("+%d gold for %d unused roll%s" % [p.rolls, p.rolls, "s" if p.rolls > 1 else ""])
+		parts.append(Lang.f("+{0} gold for {1} unused rolls", [p.rolls, p.rolls]) if p.rolls > 1 else Lang.t("+1 gold for 1 unused roll"))
 		p.gold += p.rolls
 	if pity > 0:
-		parts.append("+1 gold: Rook tips you for a turn with no placements")
+		parts.append(Lang.t("+1 gold: Rook tips you for a turn with no placements"))
 	var msg := " · ".join(PackedStringArray(parts))
 	var paid := pity + (p.rolls if not p.lk else 0)
 	if paid > 0:
@@ -382,7 +382,7 @@ func hint(i: int) -> Dictionary:
 			c = j
 			break
 	if c < 0:
-		return _r(false, "That die fits nowhere")
+		return _r(false, Lang.t("That die fits nowhere"))
 	p.hints -= 1
 	return place(i, c)
 
@@ -413,23 +413,23 @@ func buy(id: String, target: int = -1) -> Dictionary:
 	if it.is_empty() or id == "whet":
 		return _r(false)
 	if p.gold < it["c"]:
-		return _r(false, "Not enough gold")
+		return _r(false, Lang.t("Not enough gold"))
 	if p.bt.has(id):
-		return _r(false, "Sold out this turn")
+		return _r(false, Lang.t("Sold out this turn"))
 	if id == "roll" and p.lk:
-		return _r(false, "Dice are locked")
-	var msg := "Bought: %s" % it["n"]
+		return _r(false, Lang.t("Dice are locked"))
+	var msg := Lang.f("Bought: {0}", [Lang.t(it["n"])])
 	if it.has("x"):
 		var rv := rivals()
 		if rv.is_empty():
-			return _r(false, "No rival to curse")
+			return _r(false, Lang.t("No rival to curse"))
 		var to := target if rv.has(target) else next_rival()
 		players[to].pending.append({"k": it["x"], "from": p.name})
 		_fx("cast", {"k": it["x"], "to": to})
-		msg = "%s sent to %s" % [it["n"], players[to].name]
+		msg = Lang.f("{0} sent to {1}", [Lang.t(it["n"]), players[to].name])
 	elif it.has("f"):
 		if p.df.size() >= Rules.MAXP:
-			return _r(false, "Dice pool is full (%d)" % Rules.MAXP)
+			return _r(false, Lang.f("Dice pool is full ({0})", [Rules.MAXP]))
 		p.df.append(it["f"])
 		p.dk.append(it["k"])
 		if not p.dv.is_empty():
@@ -458,7 +458,7 @@ func memo(cell: int) -> Dictionary:
 	p.memo.append(cell)
 	p.scribe -= 1
 	_fx("memo", {"c": cell})
-	return _r(true, "Memo written (%d left)" % p.scribe)
+	return _r(true, Lang.f("Memo written ({0} left)", [p.scribe]))
 
 ## Rule-legal numbers for an empty tile (what a memo shows).
 func candidates(p: PlayerState, cell: int) -> Array:
@@ -476,15 +476,15 @@ func upgrade(i: int) -> Dictionary:
 	if not p.active() or i < 0 or i >= p.df.size():
 		return _r(false)
 	if p.gold < Rules.WHET:
-		return _r(false, "Not enough gold")
+		return _r(false, Lang.t("Not enough gold"))
 	var k := Rules.UPGRADES.find(p.df[i])
 	if k < 0 or k >= Rules.UPGRADES.size() - 1:
-		return _r(false, "Already the strongest die (d10)")
+		return _r(false, Lang.t("Already the strongest die (d10)"))
 	var old: int = p.df[i]
 	p.df[i] = Rules.UPGRADES[k + 1]
 	p.gold -= Rules.WHET
 	_fx("upgrade", {"i": i})
-	return _r(true, "d%d upgraded to d%d" % [old, p.df[i]])
+	return _r(true, Lang.f("d{0} upgraded to d{1}", [old, p.df[i]]))
 
 func _advance() -> void:
 	var n := players.size()

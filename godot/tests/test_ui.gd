@@ -219,3 +219,64 @@ func test_bots_random_heroes(t) -> void:
 		ui.queue_free()
 	t.check(seen.size() >= 8, "bots spread over many combos (%d)" % seen.size())
 	t.check(Rules.random_hero([]).size() == 2, "random_hero returns race and class")
+
+func test_tutorial_on_rails(t) -> void:
+	var ui = make_ui(t)
+	ui.start_tutorial()
+	var g: Game = ui.game
+	var p: PlayerState = g.current()
+	t.check(ui.tut == 0 and ui.find_child("tut_panel", true, false) != null, "tutorial starts with its panel")
+	ui._on_roll()
+	t.check(p.dv.is_empty(), "rolling is blocked on the welcome step")
+	ui._on_tut_next()
+	ui._on_lock()
+	t.check(not p.lk, "lock blocked while the tutorial asks for Roll")
+	ui._on_roll()
+	t.check(ui.tut == 2 and p.dv[0] == p.sol[ui.tut_cell], "scripted first die fits the tutorial tile")
+	ui._on_die(3)
+	t.check(not p.dh[3], "only the first die may be held")
+	ui._on_die(0)
+	t.check(p.dh[0] and ui.tut == 3, "hold step")
+	var keep: int = p.dv[0]
+	ui._on_roll()
+	t.check(p.dv[0] == keep and ui.tut == 4, "held die kept on the second roll")
+	var g0 := p.gold
+	ui._on_lock()
+	t.check(p.lk and p.gold == g0 + 1 and ui.tut == 5, "lock pays 1 gold for the unused roll")
+	ui._on_die(0)
+	t.check(ui.sel == 0 and ui.tut == 6, "pick step")
+	var wrong := -1
+	for j in 16:
+		if p.grid[j] == 0 and j != ui.tut_cell:
+			wrong = j
+			break
+	ui._on_cell(wrong)
+	t.check(p.grid[wrong] == 0 and p.mis == 0, "a wrong tile is blocked in the tutorial")
+	ui._on_cell(ui.tut_cell)
+	t.check(p.grid[ui.tut_cell] != 0 and p.mis == 0 and ui.tut == 7, "placed on the tutorial tile")
+	ui._on_tut_next()
+	ui.toggle_drawer("party")
+	t.check(not ui.drawer.visible, "party tab blocked when the shop is asked")
+	ui.toggle_drawer("shop")
+	t.check(ui.drawer.visible and ui.tut == 9, "shop opened")
+	ui._on_tut_next()
+	t.check(not ui.drawer.visible and ui.tut == 10, "next closes the shop")
+	ui._on_end()
+	t.check(ui.tut == 11 and p.turn == 2, "end turn step")
+	ui._on_tut_finish()
+	t.check(ui.tut == -1 and ui.screen == "lobby", "finish returns to the lobby")
+	ui.queue_free()
+
+func test_language_switch(t) -> void:
+	var ui = make_ui(t)
+	for c in Lang.LANGS:
+		Lang.set_lang(c)
+		t.check(Lang.code == c, "set %s" % c)
+		ui.show_lobby()
+		t.check(ui.find_child("lang_picker", true, false) != null, "picker on the home screen (%s)" % c)
+	Lang.set_lang("pt_BR")
+	t.check(Lang.f("{0} cleared the dungeon!", ["Ana"]).contains("Ana"), "placeholders survive translation")
+	Lang.set_lang("en")
+	t.check(Lang.t("Roll") == "Roll" and Lang.f("HERO_TITLE", ["Cat", "Wizard"]) == "Cat Wizard", "English and keyed strings")
+	t.check(Lang.from_locale("pt_PT") == "pt_BR" and Lang.from_locale("zh_TW") == "zh_CN" and Lang.from_locale("de_DE") == "en", "device locale mapping")
+	ui.queue_free()

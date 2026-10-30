@@ -91,10 +91,10 @@ func remove_seat(key: String) -> String:
 		return ""
 	var seat: Dictionary = room.get("seats", {}).get(key, {})
 	if seat.get("bot", "") == "":
-		return "Only bots can be removed"
+		return Lang.t("Only bots can be removed")
 	var w: Dictionary = await db.req(HTTPClient.METHOD_DELETE, "rooms/%s/seats/%s" % [code, key])
 	if not w["ok"]:
-		return "Could not remove the bot"
+		return Lang.t("Could not remove the bot")
 	room["seats"].erase(key)
 	changed.emit()
 	return ""
@@ -108,7 +108,7 @@ func set_bot_level(key: String, level: String) -> String:
 		return ""
 	var w: Dictionary = await db.req(PATCH, "rooms/%s/seats/%s" % [code, key], {"bot": level})
 	if not w["ok"]:
-		return "Could not change the bot"
+		return Lang.t("Could not change the bot")
 	room["seats"][key]["bot"] = level
 	changed.emit()
 	return ""
@@ -122,19 +122,19 @@ func create(size: int, pname: String, pet: String, cls: String = "", givens: int
 		var c := new_code()
 		var r: Dictionary = await db.req(GET, "rooms/" + c + "/cfg")
 		if not r["ok"]:
-			return "Can't reach the server"
+			return Lang.t("Can't reach the server")
 		if r["data"] == null:
 			code = c
 			break
 	if code == "":
-		return "Could not find a free room code"
+		return Lang.t("Could not find a free room code")
 	var cfg := {"size": size, "givens": givens, "mode": qmode, "seed": randi() % 2147483647, "dice_seed": randi() % 2147483647, "host": uid,
 		"created": int(Time.get_unix_time_from_system())}
 	room = {"cfg": cfg, "started": false, "seats": {seat_key(): {"name": pname, "pet": pet, "cls": cls, "uid": uid, "bot": ""}}}
 	var w: Dictionary = await db.req(PUT, "rooms/" + code, room)
 	if not w["ok"]:
 		code = ""
-		return "Could not create the room"
+		return Lang.t("Could not create the room")
 	host = true
 	changed.emit()
 	return ""
@@ -144,9 +144,9 @@ func join(c: String, pname: String, pet: String, cls: String = "") -> String:
 	c = c.strip_edges().to_upper()
 	var r: Dictionary = await db.req(GET, "rooms/" + c)
 	if not r["ok"]:
-		return "Can't reach the server"
+		return Lang.t("Can't reach the server")
 	if r["data"] == null or not (r["data"] is Dictionary) or not r["data"].has("cfg"):
-		return "Room %s not found" % c
+		return Lang.f("Room {0} not found", [c])
 	room = r["data"]
 	code = c
 	host = room["cfg"]["host"] == uid
@@ -164,23 +164,23 @@ func join(c: String, pname: String, pet: String, cls: String = "") -> String:
 				var w0: Dictionary = await db.req(PATCH, "rooms/%s/seats/%s" % [code, k], {"uid": uid})
 				if not w0["ok"]:
 					code = ""
-					return "Could not rejoin"
+					return Lang.t("Could not rejoin")
 				s["uid"] = uid
 				_maybe_start()
 				changed.emit()
 				return ""
 		code = ""
-		return "That game has already started"
+		return Lang.t("That game has already started")
 	var seats := seats_sorted()
 	if seats.size() >= MAX_SEATS:
 		code = ""
-		return "Room is full"
+		return Lang.t("Room is full")
 	var k := next_seat_key()
 	var seat := {"name": pname, "pet": pet, "cls": cls, "uid": uid, "bot": ""}
 	var w: Dictionary = await db.req(PUT, "rooms/%s/seats/%s" % [code, k], seat)
 	if not w["ok"]:
 		code = ""
-		return "Could not join the room"
+		return Lang.t("Could not join the room")
 	room["seats"][k] = seat
 	changed.emit()
 	return ""
@@ -193,7 +193,7 @@ func add_bot(level: String) -> String:
 		room = r["data"]
 	var seats := seats_sorted()
 	if seats.size() >= MAX_SEATS:
-		return "Room is full"
+		return Lang.t("Room is full")
 	var taken := []
 	var names := []
 	for s in seats:
@@ -209,22 +209,22 @@ func add_bot(level: String) -> String:
 	var k := next_seat_key()
 	var w: Dictionary = await db.req(PUT, "rooms/%s/seats/%s" % [code, k], seat)
 	if not w["ok"]:
-		return "Could not add a bot"
+		return Lang.t("Could not add a bot")
 	room["seats"][k] = seat
 	changed.emit()
 	return ""
 
 func start() -> String:
 	if not host:
-		return "Only the host can start"
+		return Lang.t("Only the host can start")
 	var r: Dictionary = await db.req(GET, "rooms/" + code)
 	if r["ok"] and r["data"] is Dictionary:
 		room = r["data"]
 	if seats_sorted().size() < 2:
-		return "Need at least 2 players"
+		return Lang.t("Need at least 2 players")
 	var w: Dictionary = await db.req(PATCH, "rooms/" + code, {"started": true})
 	if not w["ok"]:
-		return "Could not start"
+		return Lang.t("Could not start")
 	room["started"] = true
 	_maybe_start()
 	changed.emit()
@@ -272,7 +272,7 @@ func _flush() -> void:
 		var item: Array = _send_q[0]
 		var w: Dictionary = await db.req(PUT, "rooms/%s/acts/%s" % [code, act_key(item[0])], item[1])
 		if not w["ok"]:
-			error = "Connection problem: retrying"
+			error = Lang.t("Connection problem: retrying")
 			await get_tree().create_timer(1.5).timeout
 			continue
 		error = ""
