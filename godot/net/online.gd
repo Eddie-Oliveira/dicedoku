@@ -180,7 +180,12 @@ func add_bot(level: String) -> String:
 	return ""
 
 func start() -> String:
-	if not host or seats_sorted().size() < 2:
+	if not host:
+		return "Only the host can start"
+	var r: Dictionary = await db.req(GET, "rooms/" + code)
+	if r["ok"] and r["data"] is Dictionary:
+		room = r["data"]
+	if seats_sorted().size() < 2:
 		return "Need at least 2 players"
 	var w: Dictionary = await db.req(PATCH, "rooms/" + code, {"started": true})
 	if not w["ok"]:

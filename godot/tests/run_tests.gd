@@ -15,6 +15,7 @@ func check(cond: bool, msg: String) -> void:
 		fail(msg)
 
 func _initialize() -> void:
+	await process_frame  # let the tree finish starting so nodes added by tests (HTTPRequest) are inside it
 	var ran := 0
 	var dir := DirAccess.open("res://tests")
 	var files := []
