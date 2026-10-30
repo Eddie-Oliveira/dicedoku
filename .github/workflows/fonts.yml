@@ -31,7 +31,7 @@ jobs:
           from fontTools import subset
           zh = json.load(open("godot/i18n/zh_CN.json", encoding="utf-8"))
           chars = set("".join(zh.values()))
-          chars |= {chr(c) for c in range(32, 127)} | set("·—–…“”‘’！？，。：；（）《》、")
+          chars |= {chr(c) for c in range(32, 127)} | set("·—–…“”‘’！？，。：；（）《》、简体中文")
           f = instancer.instantiateVariableFont(TTFont("NotoSansSC.ttf"), {"wght": 500})
           opts = subset.Options(); opts.layout_features = ["*"]; opts.name_IDs = ["*"]; opts.notdef_outline = True
           s = subset.Subsetter(opts); s.populate(text="".join(sorted(chars))); s.subset(f)
