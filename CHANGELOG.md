@@ -35,6 +35,15 @@ Closes: Online rooms, bots, art in the UI, stable/dev links (DOCS part); Godot p
 - Tests: n/a
 - Needs: DESIGN: confirm GDD wording of useless/dead faces and shop-once-per-turn. CODE: stale comment in game.gd header ("online replay later"); check results order text matches UI.
 
+### [2026-10-30] v0.11 · Released to stable
+areas: CODE | DESIGN | DOCS
+agent: lead
+- Before release (Eddie): dice tuner removed from player builds (button only in editor/dev runs; values baked in). Bots now get a random race + class (distinct combos per match, `Rules.random_hero`) and a name from `Rules.BOT_NAMES`, local and online, ready for class skills.
+- Eddie approved: main promoted to `stable` (site root). Project version 0.11; docs/RELEASES.md updated.
+- Files: godot/core/rules.gd, godot/net/online.gd, godot/ui/main.gd, godot/tests/{test_ui,test_online}.gd, godot/project.godot, docs/RELEASES.md
+- Tests: CI 46 tests, 0 failures
+- Needs: DESIGN: class skills spec; monetization plan (see chat 2026-10-30).
+
 ### [2026-10-30] v0.11-dev · Tavern UI restored, How to play tab, dungeon floor variants
 areas: CODE | ASSETS | DESIGN
 agent: lead (code role) + assets

@@ -1,6 +1,15 @@
 # Dicedoku — Release notes
 
-## v0.10 (current stable, released 2026-10-30)
+## v0.11 (current stable, released 2026-10-30)
+Play at https://eddie-oliveira.github.io/dicedoku/
+- Modes: Blitz 4x4, or 9x9 at four levels: Cozy (42 numbers shown, extra 9s for beginners), Adventurer (36), Hero (32), Legend (28). 6x6 removed.
+- Fairer boards: every player starts with the same number of 7s, 8s and 9s.
+- Mobile-friendly: Rook's shop, the party list and How to play slide up from tabs at the bottom.
+- Cute pastel heroes (races and classes) and Rook, in the tavern-and-dungeon interface; the dungeon floor uses 5 kinds of stone tiles.
+- Bots pick a random race and class (and a name), ready for class skills.
+- Dice numbers centred on every gem.
+
+## v0.10 (released 2026-10-30)
 Play at https://eddie-oliveira.github.io/dicedoku/
 - Choose a race (Cat, Dog, Fox, Bunny, Bear, Mouse) and a class (Wizard, Knight, Rogue, Bard, Cleric, Ranger) for your hero.
 - Play online with a 5-letter room code, or against bots (easy, normal, hard) on one device.
