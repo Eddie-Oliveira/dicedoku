@@ -23,7 +23,12 @@ var sel := -1
 var upgrade_mode := false
 var target := -1
 var shown_cur := -1
-var lobby := {"size": 6, "count": 2, "names": ["Ana", "Bob", "Cy", "Di"], "pets": [0, 1, 2, 3]}
+var lobby := {"size": 6, "count": 2, "names": ["Ana", "Bob", "Cy", "Di"], "pets": [0, 1, 2, 3], "types": [0, 0, 0, 0]}
+const SEAT_TYPES := ["Human", "Bot (easy)", "Bot (normal)", "Bot (hard)"]
+const BOT_LEVELS := ["", "easy", "normal", "hard"]
+const BOT_DELAY := 0.45
+var bot_wait := 0.0
+var bot_fails := 0
 var body: VBoxContainer
 var toast_panel: PanelContainer
 var toast_label: Label
@@ -73,6 +78,11 @@ func build() -> void:
 	show_lobby()
 
 func _process(delta: float) -> void:
+	if is_bot_turn() and (screen == "game" or screen == "pass"):
+		bot_wait -= delta
+		if bot_wait <= 0.0:
+			bot_wait = BOT_DELAY
+			bot_step()
 	if toast_left > 0.0:
 		toast_left -= delta
 		if toast_left <= 0.0:
@@ -202,6 +212,12 @@ func show_lobby() -> void:
 		op.select(lobby["pets"][i])
 		op.item_selected.connect(func(ix: int) -> void: lobby["pets"][i] = ix)
 		pr.add_child(op)
+		var ot := OptionButton.new()
+		for st in SEAT_TYPES:
+			ot.add_item(st)
+		ot.select(lobby["types"][i])
+		ot.item_selected.connect(func(ix: int) -> void: lobby["types"][i] = ix)
+		pr.add_child(ot)
 		v.add_child(pr)
 	v.add_child(btn("Start adventure", start_from_lobby))
 	var h := panel("How to play")
@@ -221,7 +237,7 @@ func start_from_lobby() -> void:
 			return
 		used.append(pet)
 		var nm: String = str(lobby["names"][i]).strip_edges()
-		seats.append({"name": nm if nm != "" else "Player %d" % (i + 1), "pet": pet})
+		seats.append({"name": nm if nm != "" else "Player %d" % (i + 1), "pet": pet, "bot": BOT_LEVELS[lobby["types"][i]]})
 	start_game(lobby["size"], seats)
 
 func start_game(n: int, seats: Array, seed_value: int = -1, dice_seed: int = -1) -> void:
@@ -253,7 +269,7 @@ func refresh() -> void:
 		sel = -1
 		upgrade_mode = false
 		target = -1
-		if active_count() > 1:
+		if not is_bot_turn() and human_count() > 1:
 			show_pass()
 		else:
 			show_game()
@@ -262,6 +278,35 @@ func refresh() -> void:
 
 func after(res: Dictionary) -> void:
 	toast(str(res.get("msg", "")))
+	refresh()
+
+## Every human or bot action goes through here (online play will also send it to the room).
+func act(a: Dictionary) -> Dictionary:
+	return game.apply(a)
+
+func is_bot_turn() -> bool:
+	return game != null and not game.over and game.current().bot != ""
+
+func human_count() -> int:
+	var c := 0
+	for p in game.players:
+		if p.active() and p.bot == "":
+			c += 1
+	return c
+
+## One bot action. If the game refuses it (should not happen), fall back to lock / end so a bot can never stall.
+func bot_step() -> void:
+	if not is_bot_turn():
+		return
+	var p := game.current()
+	var a := Bot.next_action(game)
+	if bot_fails >= 2:
+		a = {"a": "lock"} if not p.lk and not p.dv.is_empty() else ({"a": "roll"} if p.dv.is_empty() else {"a": "end"})
+	var res := act(a)
+	bot_fails = 0 if res.get("ok", false) else bot_fails + 1
+	var m := str(res.get("msg", ""))
+	if a["a"] in ["place", "buy", "end"] or "from" in m:
+		toast(("%s: " % p.name) + m if m != "" else "")
 	refresh()
 
 func show_pass() -> void:
@@ -284,7 +329,10 @@ func show_game() -> void:
 	screen = "game"
 	clear()
 	var p := game.current()
-	body.add_child(lbl("%s the %s  -  turn %d" % [p.name, pet_name(p.pet), p.turn], 28, C_WOOD))
+	var who := "%s the %s  -  turn %d" % [p.name, pet_name(p.pet), p.turn]
+	if p.bot != "":
+		who += "  (bot, %s)" % p.bot
+	body.add_child(lbl(who, 28, C_WOOD))
 	if not p.pending.is_empty() and not p.fxd:
 		body.add_child(lbl("A curse will hit your first roll!", 20, C_CURSE))
 	_board(p)
@@ -295,6 +343,8 @@ func show_game() -> void:
 	body.add_child(btn("Quit to lobby", show_lobby))
 
 func _phase(p: PlayerState) -> String:
+	if p.bot != "":
+		return "%s is thinking..." % p.name
 	if upgrade_mode:
 		return "Whetstone: tap a die to upgrade it"
 	if p.lk:
@@ -416,10 +466,11 @@ func _dice(p: PlayerState) -> void:
 	v.add_child(lbl(info, 18))
 	var r := row()
 	var rolled := not p.dv.is_empty()
-	r.add_child(btn("Roll", _on_roll, p.lk or p.rolls < 1))
-	r.add_child(btn("Lock", _on_lock, not rolled or p.lk))
-	r.add_child(btn("End turn", _on_end, not rolled))
-	r.add_child(btn("Hint", _on_hint, p.hints < 1 or not p.lk or sel < 0))
+	var bt := p.bot != ""
+	r.add_child(btn("Roll", _on_roll, bt or p.lk or p.rolls < 1))
+	r.add_child(btn("Lock", _on_lock, bt or not rolled or p.lk))
+	r.add_child(btn("End turn", _on_end, bt or not rolled))
+	r.add_child(btn("Hint", _on_hint, bt or p.hints < 1 or not p.lk or sel < 0))
 	v.add_child(r)
 
 func _shop(p: PlayerState) -> void:
@@ -498,29 +549,39 @@ func show_results() -> void:
 # ---------- input ----------
 
 func _on_roll() -> void:
+	if is_bot_turn():
+		return
 	sel = -1
-	after(game.roll())
+	after(act({"a": "roll"}))
 
 func _on_lock() -> void:
-	after(game.lock())
+	if is_bot_turn():
+		return
+	after(act({"a": "lock"}))
 
 func _on_end() -> void:
+	if is_bot_turn():
+		return
 	sel = -1
-	after(game.end_turn())
+	after(act({"a": "end"}))
 
 func _on_hint() -> void:
+	if is_bot_turn():
+		return
 	var i := sel
 	sel = -1
-	after(game.hint(i))
+	after(act({"a": "hint", "i": i}))
 
 func _on_die(i: int) -> void:
+	if is_bot_turn():
+		return
 	var p := game.current()
 	if upgrade_mode:
 		upgrade_mode = false
-		after(game.upgrade(i))
+		after(act({"a": "upg", "i": i}))
 		return
 	if not p.lk:
-		after(game.hold(i))
+		after(act({"a": "hold", "i": i}))
 		return
 	var chk := game.can_pick(i)
 	if not chk["ok"]:
@@ -530,7 +591,7 @@ func _on_die(i: int) -> void:
 	show_game()
 
 func _on_cell(i: int) -> void:
-	if game == null or screen != "game":
+	if game == null or screen != "game" or is_bot_turn():
 		return
 	if sel < 0:
 		if game.current().lk:
@@ -538,9 +599,11 @@ func _on_cell(i: int) -> void:
 		return
 	var d := sel
 	sel = -1
-	after(game.place(d, i))
+	after(act({"a": "place", "i": d, "c": i}))
 
 func _on_buy(id: String) -> void:
+	if is_bot_turn():
+		return
 	if id == "whet":
 		if not upgrade_mode and game.current().gold < Rules.WHET:
 			toast("Not enough gold")
@@ -548,4 +611,4 @@ func _on_buy(id: String) -> void:
 		upgrade_mode = not upgrade_mode
 		show_game()
 		return
-	after(game.buy(id, target))
+	after(act({"a": "buy", "id": id, "t": target}))

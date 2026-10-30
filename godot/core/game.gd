@@ -25,11 +25,36 @@ func _init(n: int, seed_value: int, seats: Array, dice_seed: int = -1) -> void:
 	sol = p["sol"]
 	puz = p["puz"]
 	for s in seats:
-		players.append(PlayerState.new(s["name"], s["pet"], puz, Rules.START_DICE[n]))
+		var ps := PlayerState.new(s["name"], s["pet"], puz, Rules.START_DICE[n])
+		ps.bot = str(s.get("bot", ""))
+		players.append(ps)
 	if dice_seed >= 0:
 		rng.seed = dice_seed
 	else:
 		rng.randomize()
+
+## Single entry point for every player action (UI, bots and, later, online replay use the same dictionaries).
+## {"a": "roll"} {"a": "hold", "i"} {"a": "lock"} {"a": "place", "i", "c"} {"a": "hint", "i"}
+## {"a": "buy", "id", "t"} {"a": "upg", "i"} {"a": "end"}
+func apply(act: Dictionary) -> Dictionary:
+	match str(act.get("a", "")):
+		"roll":
+			return roll()
+		"hold":
+			return hold(int(act["i"]))
+		"lock":
+			return lock()
+		"place":
+			return place(int(act["i"]), int(act["c"]))
+		"hint":
+			return hint(int(act["i"]))
+		"buy":
+			return buy(str(act["id"]), int(act.get("t", -1)))
+		"upg":
+			return upgrade(int(act["i"]))
+		"end":
+			return end_turn()
+	return _r(false)
 
 static func _r(ok: bool, msg: String = "") -> Dictionary:
 	return {"ok": ok, "msg": msg}
@@ -233,6 +258,7 @@ func end_turn() -> Dictionary:
 		return _r(false)
 	var b := Rules.combo(p.dv, size)
 	var pity := 0 if p.used_any() else 1
+	p.stall = 0 if p.used_any() else p.stall + 1
 	var msg := ""
 	if b > 0:
 		msg = "Combo! +%d hint%s" % [b, "s" if b > 1 else ""]

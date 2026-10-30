@@ -21,6 +21,9 @@ func fit_cell(g: Game, p: PlayerState, i: int) -> int:
 
 ## Plays one turn through the UI handlers like a careful player.
 func ui_turn(ui) -> void:
+	if ui.is_bot_turn():
+		ui.bot_step()
+		return
 	if ui.screen == "pass":
 		ui.show_game()
 	var g: Game = ui.game
@@ -125,3 +128,32 @@ func test_board_layout(t) -> void:
 			t.check(box.get_index() == (y / g.br) * (n / g.bc) + x / g.bc, "%dx%d cell %d in wrong box" % [n, n, i])
 		t.check(found == n * n, "%dx%d: all %d cells present (%d)" % [n, n, n * n, found])
 		ui.queue_free()
+
+func test_human_with_bots(t) -> void:
+	var ui = make_ui(t)
+	ui.lobby["count"] = 3
+	ui.lobby["size"] = 6
+	ui.lobby["types"] = [0, 2, 3, 0]
+	ui.start_from_lobby()
+	t.check(ui.screen == "game", "one human: no pass screen")
+	t.check(ui.game.players[1].bot == "normal" and ui.game.players[2].bot == "hard", "bot levels from lobby")
+	var g: Game = ui.game
+	ui._on_roll()
+	ui._on_roll()
+	ui._on_roll()
+	ui._on_end()
+	t.check(ui.is_bot_turn(), "bot's turn after the human")
+	var before := g.players[1].turn
+	ui._on_roll()
+	t.check(g.players[1].dv.is_empty(), "human input ignored on bot turn")
+	var guard := 0
+	while ui.is_bot_turn() and guard < 500:
+		guard += 1
+		ui.bot_step()
+	t.check(g.cur == 0 and g.players[1].turn == before + 1 and g.players[2].turn == 2, "both bots played one turn each, back to the human")
+	guard = 0
+	while ui.screen != "results" and guard < 3000:
+		guard += 1
+		ui_turn(ui)
+	t.check(ui.screen == "results", "human + bots game reaches results")
+	ui.queue_free()

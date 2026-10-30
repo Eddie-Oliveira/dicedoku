@@ -25,6 +25,10 @@ var ward := 0
 var shk := 0
 var fxd := false
 var pending: Array = []
+## "" for a human seat, else the bot level: easy, normal or hard.
+var bot := ""
+## Turns in a row without a placement (normal bots start guessing at 3).
+var stall := 0
 
 func _init(name_: String, pet_: String, puz: Array, dice: Array) -> void:
 	name = name_
