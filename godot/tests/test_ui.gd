@@ -119,8 +119,8 @@ func test_board_layout(t) -> void:
 			found += 1
 			var box: GridContainer = b.get_parent()
 			var k := b.get_index()
-			var y := i / n
-			var x := i % n
+			var y: int = i / n
+			var x: int = i % n
 			t.check(k == (y % g.br) * g.bc + (x % g.bc), "%dx%d cell %d in wrong spot inside its box" % [n, n, i])
 			t.check(box.get_index() == (y / g.br) * (n / g.bc) + x / g.bc, "%dx%d cell %d in wrong box" % [n, n, i])
 		t.check(found == n * n, "%dx%d: all %d cells present (%d)" % [n, n, n * n, found])
