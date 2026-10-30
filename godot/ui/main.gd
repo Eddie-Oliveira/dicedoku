@@ -100,8 +100,8 @@ func build() -> void:
 	margin.add_child(body)
 	toast_panel = PanelContainer.new()
 	toast_panel.set_anchors_preset(Control.PRESET_CENTER_BOTTOM)
-	toast_panel.offset_top = -110
-	toast_panel.offset_bottom = -40
+	toast_panel.offset_top = -190
+	toast_panel.offset_bottom = -120
 	toast_panel.offset_left = -330
 	toast_panel.offset_right = 330
 	toast_panel.add_theme_stylebox_override("panel", _box(C_INK, 14, C_INK, 0))
@@ -312,7 +312,7 @@ func show_lobby() -> void:
 		title.add_child(img("ui/logo_dice.svg", 96))
 	title.add_child(lbl("Dicedoku", 52, C_WOOD))
 	body.add_child(title)
-	body.add_child(lbl("v0.10", 18, C_STONE))
+	body.add_child(lbl("v0.11-dev", 18, C_STONE))
 	var v := panel("New game")
 	var r := row()
 	r.add_child(lbl("Mode"))
@@ -884,8 +884,10 @@ func _fill_drawer() -> void:
 		c.queue_free()
 	panel_parent = drawer_box
 	var head := row()
-	head.add_child(lbl("Rook's shop" if drawer_open == "shop" else "Party", 24, C_WOOD))
-	head.add_child(btn("Close", toggle_drawer.bind(drawer_open)))
+	head.add_child(lbl("", 8))
+	var cb := btn("Close", toggle_drawer.bind(drawer_open))
+	cb.size_flags_horizontal = Control.SIZE_SHRINK_END
+	head.add_child(cb)
 	drawer_box.add_child(head)
 	if drawer_open == "shop":
 		_shop(p)
@@ -988,6 +990,8 @@ func show_tuner() -> void:
 			sl.custom_minimum_size = Vector2(320, 40)
 			sl.size_flags_horizontal = Control.SIZE_EXPAND_FILL
 			var val_l := lbl(str(t[k]), 18)
+			val_l.autowrap_mode = TextServer.AUTOWRAP_OFF
+			val_l.custom_minimum_size = Vector2(48, 0)
 			val_l.size_flags_horizontal = Control.SIZE_SHRINK_END
 			sl.value_changed.connect(_on_tune.bind(f, k, val_l))
 			sr.add_child(sl)
