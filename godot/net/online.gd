@@ -27,6 +27,13 @@ var _polling := false
 var _send_q: Array = []
 var _sending := false
 var error := ""
+## Animation events from actions received from other devices (the UI plays and clears them).
+var pending_fx: Array = []
+
+func take_fx() -> Array:
+	var out := pending_fx
+	pending_fx = []
+	return out
 
 func _init(backend = null, user_id: String = "") -> void:
 	db = backend
@@ -110,7 +117,7 @@ func started() -> bool:
 	return bool(room.get("started", false))
 
 ## Creates a room and seats the host. Returns "" or an error message.
-func create(size: int, pname: String, pet: String) -> String:
+func create(size: int, pname: String, pet: String, cls: String = "") -> String:
 	for attempt in 4:
 		var c := new_code()
 		var r: Dictionary = await db.req(GET, "rooms/" + c + "/cfg")
@@ -123,7 +130,7 @@ func create(size: int, pname: String, pet: String) -> String:
 		return "Could not find a free room code"
 	var cfg := {"size": size, "seed": randi() % 2147483647, "dice_seed": randi() % 2147483647, "host": uid,
 		"created": int(Time.get_unix_time_from_system())}
-	room = {"cfg": cfg, "started": false, "seats": {seat_key(): {"name": pname, "pet": pet, "uid": uid, "bot": ""}}}
+	room = {"cfg": cfg, "started": false, "seats": {seat_key(): {"name": pname, "pet": pet, "cls": cls, "uid": uid, "bot": ""}}}
 	var w: Dictionary = await db.req(PUT, "rooms/" + code, room)
 	if not w["ok"]:
 		code = ""
@@ -133,7 +140,7 @@ func create(size: int, pname: String, pet: String) -> String:
 	return ""
 
 ## Joins (or rejoins) a room. Returns "" or an error message.
-func join(c: String, pname: String, pet: String) -> String:
+func join(c: String, pname: String, pet: String, cls: String = "") -> String:
 	c = c.strip_edges().to_upper()
 	var r: Dictionary = await db.req(GET, "rooms/" + c)
 	if not r["ok"]:
@@ -168,16 +175,8 @@ func join(c: String, pname: String, pet: String) -> String:
 	if seats.size() >= MAX_SEATS:
 		code = ""
 		return "Room is full"
-	var used := []
-	for s in seats:
-		used.append(s.get("pet", ""))
-	if used.has(pet):
-		for p in Rules.PETS:
-			if not used.has(p):
-				pet = p
-				break
 	var k := next_seat_key()
-	var seat := {"name": pname, "pet": pet, "uid": uid, "bot": ""}
+	var seat := {"name": pname, "pet": pet, "cls": cls, "uid": uid, "bot": ""}
 	var w: Dictionary = await db.req(PUT, "rooms/%s/seats/%s" % [code, k], seat)
 	if not w["ok"]:
 		code = ""
@@ -203,7 +202,10 @@ func add_bot(level: String) -> String:
 		if not used.has(p):
 			pet = p
 			break
-	var seat := {"name": "%s bot" % Rules.PET_NAMES[pet].split(" ")[0], "pet": pet, "uid": "bot", "bot": level}
+	if pet == "":
+		pet = Rules.PETS[randi() % Rules.PETS.size()]
+	var cls: String = Rules.CLASSES[randi() % Rules.CLASSES.size()]
+	var seat := {"name": "%s bot" % Rules.PET_NAMES[pet], "pet": pet, "cls": cls, "uid": "bot", "bot": level}
 	var k := next_seat_key()
 	var w: Dictionary = await db.req(PUT, "rooms/%s/seats/%s" % [code, k], seat)
 	if not w["ok"]:
@@ -236,7 +238,7 @@ func _maybe_start() -> void:
 	my_seat = -1
 	var ss := seats_sorted()
 	for i in ss.size():
-		seats.append({"name": ss[i]["name"], "pet": ss[i]["pet"], "bot": ss[i].get("bot", "")})
+		seats.append({"name": ss[i]["name"], "pet": ss[i]["pet"], "cls": ss[i].get("cls", ""), "bot": ss[i].get("bot", "")})
 		if ss[i].get("uid", "") == uid:
 			my_seat = i
 	game = Game.new(int(cfg["size"]), int(cfg["seed"]), seats, int(cfg["dice_seed"]))
@@ -298,7 +300,8 @@ func poll() -> void:
 			for k in keys:
 				if k != act_key(applied):
 					continue
-				game.apply(r["data"][k])
+				var res: Dictionary = game.apply(r["data"][k])
+				pending_fx.append_array(res.get("fx", []))
 				applied += 1
 				any = true
 			if any:

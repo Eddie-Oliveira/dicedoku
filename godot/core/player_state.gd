@@ -4,6 +4,8 @@ extends RefCounted
 
 var name: String
 var pet: String
+## Class id (wizard, knight, ...). Cosmetic for now.
+var cls := ""
 var grid: Array
 ## Own solution and starting puzzle (every seat gets a transformed copy of the same puzzle).
 var sol: Array

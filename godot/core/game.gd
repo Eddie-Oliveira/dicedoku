@@ -12,8 +12,16 @@ var cur := 0
 var over := false
 var finish_seq := 0
 var rng := RandomNumberGenerator.new()
+## Visual/sound events produced by the last apply() (for animations); cleared on every apply().
+var fx: Array = []
 
-## seats: Array of {"name": String, "pet": String}. dice_seed >= 0 makes dice rolls reproducible (tests).
+func _fx(t: String, data: Dictionary = {}) -> void:
+	var e := data.duplicate()
+	e["t"] = t
+	e["seat"] = cur
+	fx.append(e)
+
+## seats: Array of {"name": String, "pet": race id, "cls": class id, "bot": level or ""}. dice_seed >= 0 makes dice rolls reproducible (tests).
 func _init(n: int, seed_value: int, seats: Array, dice_seed: int = -1) -> void:
 	size = n
 	game_seed = seed_value
@@ -27,6 +35,7 @@ func _init(n: int, seed_value: int, seats: Array, dice_seed: int = -1) -> void:
 			mine = Puzzle.transform(base["sol"], base["puz"], n, br, bc, DRng.new(game_seed * 31 + 7919 * k))
 		var ps := PlayerState.new(s["name"], s["pet"], mine["sol"], mine["puz"], Rules.START_DICE[n])
 		ps.bot = str(s.get("bot", ""))
+		ps.cls = str(s.get("cls", ""))
 		players.append(ps)
 	if dice_seed >= 0:
 		rng.seed = dice_seed
@@ -37,6 +46,12 @@ func _init(n: int, seed_value: int, seats: Array, dice_seed: int = -1) -> void:
 ## {"a": "roll"} {"a": "hold", "i"} {"a": "lock"} {"a": "place", "i", "c"} {"a": "hint", "i"}
 ## {"a": "buy", "id", "t"} {"a": "upg", "i"} {"a": "end"}
 func apply(act: Dictionary) -> Dictionary:
+	fx = []
+	var res := _apply(act)
+	res["fx"] = fx.duplicate()
+	return res
+
+func _apply(act: Dictionary) -> Dictionary:
 	match str(act.get("a", "")):
 		"roll":
 			return roll()
@@ -152,7 +167,9 @@ func _apply_curses(p: PlayerState) -> Dictionary:
 		if p.ward > 0:
 			p.ward -= 1
 			res["msgs"].append("Ward blocked %s from %s" % [nm, c["from"]])
+			_fx("ward", {"k": c["k"]})
 			continue
+		_fx("curse", {"k": c["k"], "from": c["from"]})
 		match c["k"]:
 			"hex":
 				res["hex"] += 1
@@ -180,15 +197,19 @@ func roll() -> Dictionary:
 	var dv := []
 	var du := []
 	var dh := []
+	var rolled := []
 	for i in n:
 		var keep: bool = _b(p.dv, i) and p.dv[i] != 0 and (_b(p.dh, i) or _b(p.du, i))
 		dv.append(p.dv[i] if keep else _roll_die(p, i))
+		if not keep:
+			rolled.append(i)
 		du.append(_b(p.du, i))
 		dh.append(_b(p.dh, i))
 	p.dv = dv
 	p.du = du
 	p.dh = dh
 	p.rolls = rolls - 1
+	_fx("roll", {"dice": rolled})
 	if p.rolls < 1:
 		var lm := _on_lock(p)
 		if lm != "":
@@ -199,8 +220,10 @@ func roll() -> Dictionary:
 func _on_lock(p: PlayerState) -> String:
 	p.lk = true
 	var msgs := []
+	_fx("lock")
 	if p.rolls > 0:
 		p.gold += p.rolls
+		_fx("gold", {"n": p.rolls, "why": "unused rolls"})
 		msgs.append("+%d gold for %d unused roll%s" % [p.rolls, p.rolls, "s" if p.rolls > 1 else ""])
 		p.rolls = 0
 	if p.blight > 0:
@@ -215,6 +238,7 @@ func _on_lock(p: PlayerState) -> String:
 			free[j] = t
 		for i in free.slice(0, p.blight):
 			p.dv[i] = 1
+		_fx("blight", {"dice": free.slice(0, p.blight)})
 		msgs.append("Blight! %d dice turned into 1s" % mini(p.blight, free.size()))
 		p.blight = 0
 	return " · ".join(PackedStringArray(msgs))
@@ -237,6 +261,7 @@ func hold(i: int) -> Dictionary:
 		if p.held_count() >= cap:
 			return _r(false, ("Shackled: hold only %d" % cap) if p.shk > 0 else ("Hold limit: %d dice" % cap))
 	p.dh[i] = not p.dh[i]
+	_fx("hold", {"i": i, "on": p.dh[i]})
 	return _r(true)
 
 func can_pick(i: int) -> Dictionary:
@@ -271,21 +296,26 @@ func place(i: int, cell: int) -> Dictionary:
 		var earned := 1 + (2 if p.dk[i] == "golden" else 0)
 		p.gold += earned
 		res["msg"] = "Correct! +%d gold%s" % [earned, " (Golden die)" if earned > 1 else ""]
+		_fx("hit", {"c": cell, "gold": earned, "i": i})
 		if is_wild(p, i):
 			res["msg"] = "Wild! Placed anywhere, +%d gold" % earned
 	elif p.dk[i] == "safe":
 		res["msg"] = "Safe die: no mistake"
+		_fx("safe", {"c": cell})
 	else:
 		p.mis += 1
 		res["msg"] = "Wrong spot: +1 mistake"
+		_fx("miss", {"c": cell})
 		if p.mis >= Rules.MAXMIS:
 			p.lost = true
 			res["msg"] = "Third mistake: %s is out!" % p.name
+			_fx("out")
 	if not p.grid.has(0):
 		p.done = true
 		finish_seq += 1
 		p.fin = finish_seq
 		res["msg"] = "%s cleared the dungeon!" % p.name
+		_fx("win")
 	res["turn_over"] = not p.active()
 	if res["turn_over"]:
 		_advance()
@@ -307,6 +337,11 @@ func end_turn() -> Dictionary:
 	if pity > 0:
 		parts.append("+1 gold: Rook tips you for a turn with no placements")
 	var msg := " · ".join(PackedStringArray(parts))
+	var paid := pity + (p.rolls if not p.lk else 0)
+	if paid > 0:
+		_fx("gold", {"n": paid, "why": "end of turn"})
+	if b > 0:
+		_fx("combo", {"n": b})
 	p.hints += b
 	p.gold += pity
 	p.blight = 0
@@ -378,6 +413,7 @@ func buy(id: String, target: int = -1) -> Dictionary:
 			return _r(false, "No rival to curse")
 		var to := target if rv.has(target) else next_rival()
 		players[to].pending.append({"k": it["x"], "from": p.name})
+		_fx("cast", {"k": it["x"], "to": to})
 		msg = "%s sent to %s" % [it["n"], players[to].name]
 	elif it.has("f"):
 		if p.df.size() >= Rules.MAXP:
@@ -398,6 +434,8 @@ func buy(id: String, target: int = -1) -> Dictionary:
 		p.scribe += 3
 	p.gold -= it["c"]
 	p.bt.append(id)
+	if not it.has("x"):
+		_fx("buy", {"id": id})
 	return _r(true, msg)
 
 ## Scribe quill: show the possible numbers on an empty tile (uses one charge).
@@ -407,6 +445,7 @@ func memo(cell: int) -> Dictionary:
 		return _r(false)
 	p.memo.append(cell)
 	p.scribe -= 1
+	_fx("memo", {"c": cell})
 	return _r(true, "Memo written (%d left)" % p.scribe)
 
 ## Rule-legal numbers for an empty tile (what a memo shows).
@@ -432,6 +471,7 @@ func upgrade(i: int) -> Dictionary:
 	var old: int = p.df[i]
 	p.df[i] = Rules.UPGRADES[k + 1]
 	p.gold -= Rules.WHET
+	_fx("upgrade", {"i": i})
 	return _r(true, "d%d upgraded to d%d" % [old, p.df[i]])
 
 func _advance() -> void:

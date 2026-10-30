@@ -10,7 +10,7 @@ func make_ui(t):
 func seats(k: int) -> Array:
 	var out := []
 	for i in k:
-		out.append({"name": ["Ana", "Bob", "Cy", "Di"][i], "pet": Rules.PETS[i]})
+		out.append({"name": ["Ana", "Bob", "Cy", "Di"][i], "pet": Rules.PETS[i], "cls": Rules.CLASSES[i]})
 	return out
 
 func fit_cell(g: Game, p: PlayerState, i: int) -> int:
@@ -62,11 +62,10 @@ func test_lobby(t) -> void:
 	t.check(ui.screen == "lobby" and ui.body.get_child_count() > 0, "lobby shown")
 	ui.lobby["count"] = 2
 	ui.lobby["pets"] = [1, 1, 2, 3]
-	ui.start_from_lobby()
-	t.check(ui.screen == "lobby" and ui.toast_label.text == "Each player needs a different pet", "duplicate pets refused")
-	ui.lobby["pets"] = [0, 1, 2, 3]
+	ui.lobby["classes"] = [5, 0, 1, 2]
 	ui.start_from_lobby()
 	t.check(ui.screen == "pass" and ui.game.players.size() == 2, "game starts with pass screen")
+	t.check(ui.game.players[0].pet == "dog" and ui.game.players[0].cls == "ranger" and ui.game.players[1].pet == "dog", "race and class from the lobby (same race allowed)")
 	ui.queue_free()
 
 func test_ui_controls(t) -> void:

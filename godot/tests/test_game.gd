@@ -5,7 +5,7 @@ func seats(k: int) -> Array:
 	var names := ["Ana", "Bob", "Cy", "Di"]
 	var out := []
 	for i in k:
-		out.append({"name": names[i], "pet": Rules.PETS[i]})
+		out.append({"name": names[i], "pet": Rules.PETS[i], "cls": Rules.CLASSES[i]})
 	return out
 
 func mk(n: int, k: int, s: int = 5) -> Game:
@@ -426,3 +426,20 @@ func test_shackle_price(t) -> void:
 	for o in Rules.VERSUS:
 		if o["id"] == "shackle":
 			t.check(o["c"] == 10, "shackle costs 10")
+
+func test_fx_events(t) -> void:
+	var g := mk(4, 2)
+	var p := g.current()
+	var r := g.apply({"a": "roll"})
+	var kinds := r["fx"].map(func(e): return e["t"])
+	t.check(kinds.has("roll") and r["fx"][0]["dice"].size() == 5, "roll event lists the rolled dice")
+	r = g.apply({"a": "lock"})
+	kinds = r["fx"].map(func(e): return e["t"])
+	t.check(kinds.has("lock") and kinds.has("gold"), "lock + gold events")
+	var c := empty_cell(g, p)
+	locked(g, [4, 4, 4, 4, 4], [p.sol[c], 1, 1, 1, 1])
+	r = g.apply({"a": "place", "i": 0, "c": c})
+	t.check(r["fx"][0]["t"] == "hit" and r["fx"][0]["c"] == c, "hit event on the cell")
+	var w := wrong_cell(g, p, 1)
+	r = g.apply({"a": "place", "i": 1, "c": w})
+	t.check(r["fx"][0]["t"] == "miss", "miss event")

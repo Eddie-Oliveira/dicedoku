@@ -9,8 +9,16 @@ const WHET := 3
 const MAXP := 9
 const MAXH := 5
 const MAXMIS := 3
-const PETS := ["kitten_wizard", "puppy_knight", "fox_rogue", "bunny_bard"]
-const PET_NAMES := {"kitten_wizard": "Kitten Wizard", "puppy_knight": "Puppy Knight", "fox_rogue": "Fox Rogue", "bunny_bard": "Bunny Bard"}
+## Races (animals). Seats keep the race id in the "pet" field; the class is in "cls" (skills come later).
+const PETS := ["cat", "dog", "fox", "bunny", "bear", "mouse"]
+const PET_NAMES := {"cat": "Cat", "dog": "Dog", "fox": "Fox", "bunny": "Bunny", "bear": "Bear", "mouse": "Mouse"}
+const CLASSES := ["wizard", "knight", "rogue", "bard", "cleric", "ranger"]
+const CLASS_NAMES := {"wizard": "Wizard", "knight": "Knight", "rogue": "Rogue", "bard": "Bard", "cleric": "Cleric", "ranger": "Ranger"}
+## Older single-image portraits used when the layered art is missing.
+const LEGACY_PORTRAIT := {"cat": "kitten_wizard", "dog": "puppy_knight", "fox": "fox_rogue", "bunny": "bunny_bard"}
+
+static func hero_title(race: String, cls: String) -> String:
+	return ("%s %s" % [PET_NAMES.get(race, race), CLASS_NAMES.get(cls, "")]).strip_edges()
 const CURSES := {"hex": "Hex", "blight": "Blight", "shackle": "Shackle"}
 const GOLD_RULES := "+1 per correct number (Golden die: +2 more)  ·  +1 per unused roll when you lock or end your turn  ·  +1 for a turn with no placements"
 

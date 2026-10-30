@@ -31,10 +31,10 @@ var upgrade_mode := false
 var memo_mode := false
 var target := -1
 var shown_cur := -1
-var lobby := {"size": 6, "count": 2, "names": ["Ana", "Bob", "Cy", "Di"], "pets": [0, 1, 2, 3], "types": [0, 0, 0, 0]}
+var lobby := {"size": 6, "count": 2, "names": ["Ana", "Bob", "Cy", "Di"], "pets": [0, 1, 2, 3], "classes": [0, 1, 2, 3], "types": [0, 0, 0, 0]}
 const SEAT_TYPES := ["Human", "Bot (easy)", "Bot (normal)", "Bot (hard)"]
 const BOT_LEVELS := ["", "easy", "normal", "hard"]
-const BOT_DELAY := 0.45
+const BOT_DELAY := 0.65
 var bot_wait := 0.0
 var bot_fails := 0
 var body: VBoxContainer
@@ -91,6 +91,7 @@ func build() -> void:
 	toast_label.autowrap_mode = TextServer.AUTOWRAP_WORD_SMART
 	toast_panel.add_child(toast_label)
 	toast_panel.visible = false
+	_build_fx()
 	add_child(toast_panel)
 	show_lobby()
 
@@ -184,18 +185,40 @@ func tbox(rel: String, margin: int, content: int, mod: Color = Color.WHITE) -> S
 	sb.modulate_color = mod
 	return sb
 
-func portrait(pet: String, px: int) -> Control:
-	var t := tex("characters/pet_%s.svg" % pet)
-	if t == null:
-		var l := lbl("", 1)
-		l.custom_minimum_size = Vector2(1, 1)
-		return l
+## Character portrait: class layer stacked on the race body (same 256 px template); falls back to older art.
+func portrait(race: String, cls: String, px: int) -> Control:
+	var body_t := tex("characters/race_%s.svg" % race)
+	if body_t == null:
+		var old := tex("characters/pet_%s.svg" % Rules.LEGACY_PORTRAIT.get(race, race))
+		if old == null:
+			var l := lbl("", 1)
+			l.custom_minimum_size = Vector2(1, 1)
+			return l
+		return _layer(old, px)
+	var holder := Control.new()
+	holder.custom_minimum_size = Vector2(px, px)
+	holder.mouse_filter = Control.MOUSE_FILTER_IGNORE
+	var b := _layer(body_t, px)
+	b.set_anchors_preset(Control.PRESET_FULL_RECT)
+	holder.add_child(b)
+	var ct := tex("characters/class_%s.svg" % cls)
+	if ct != null:
+		var c := _layer(ct, px)
+		c.set_anchors_preset(Control.PRESET_FULL_RECT)
+		holder.add_child(c)
+	return holder
+
+func _layer(t: Texture2D, px: int) -> TextureRect:
 	var r := TextureRect.new()
 	r.texture = t
 	r.expand_mode = TextureRect.EXPAND_IGNORE_SIZE
 	r.stretch_mode = TextureRect.STRETCH_KEEP_ASPECT_CENTERED
 	r.custom_minimum_size = Vector2(px, px)
+	r.mouse_filter = Control.MOUSE_FILTER_IGNORE
 	return r
+
+func hero(q: PlayerState) -> String:
+	return Rules.hero_title(q.pet, q.cls)
 
 func img(rel: String, px: int) -> TextureRect:
 	var r := TextureRect.new()
@@ -283,34 +306,46 @@ func show_lobby() -> void:
 	r2.add_child(oc)
 	v.add_child(r2)
 	for i in lobby["count"]:
+		var seat := VBoxContainer.new()
 		var pr := row()
-		pr.add_child(portrait(Rules.PETS[lobby["pets"][i]], 48))
+		pr.add_child(portrait(Rules.PETS[lobby["pets"][i]], Rules.CLASSES[lobby["classes"][i]], 72))
 		var le := LineEdit.new()
 		le.text = lobby["names"][i]
 		le.max_length = 12
 		le.size_flags_horizontal = Control.SIZE_EXPAND_FILL
 		le.text_changed.connect(func(t: String) -> void: lobby["names"][i] = t)
 		pr.add_child(le)
-		var op := OptionButton.new()
-		for pet in Rules.PETS:
-			var pt := tex("characters/pet_%s.svg" % pet)
-			if pt != null:
-				op.add_icon_item(pt, pet_name(pet))
-			else:
-				op.add_item(pet_name(pet))
-		op.select(lobby["pets"][i])
-		op.item_selected.connect(_on_pet.bind(i))
-		pr.add_child(op)
 		var ot := OptionButton.new()
 		for st in SEAT_TYPES:
 			ot.add_item(st)
 		ot.select(lobby["types"][i])
 		ot.item_selected.connect(func(ix: int) -> void: lobby["types"][i] = ix)
 		pr.add_child(ot)
-		v.add_child(pr)
+		seat.add_child(pr)
+		var pr2 := row()
+		pr2.add_child(lbl("Race", 18, C_STONE))
+		var op := OptionButton.new()
+		for race in Rules.PETS:
+			var pt := tex("characters/race_%s.svg" % race)
+			if pt != null:
+				op.add_icon_item(pt, pet_name(race))
+			else:
+				op.add_item(pet_name(race))
+		op.select(lobby["pets"][i])
+		op.item_selected.connect(_on_pet.bind(i))
+		pr2.add_child(op)
+		pr2.add_child(lbl("Class", 18, C_STONE))
+		var oc2 := OptionButton.new()
+		for c in Rules.CLASSES:
+			oc2.add_item(Rules.CLASS_NAMES[c])
+		oc2.select(lobby["classes"][i])
+		oc2.item_selected.connect(_on_class.bind(i))
+		pr2.add_child(oc2)
+		seat.add_child(pr2)
+		v.add_child(seat)
 	v.add_child(btn("Start adventure", start_from_lobby))
 	var o := panel("Play online")
-	o.add_child(lbl("Uses the first player's name and pet. Bots can be added in the room.", 16, C_STONE))
+	o.add_child(lbl("Uses the first player's name, race and class. Bots can be added in the room.", 16, C_STONE))
 	o.add_child(btn("Create online room", _on_create_online))
 	var jr := row()
 	var ce := LineEdit.new()
@@ -325,6 +360,10 @@ func show_lobby() -> void:
 	var h := panel("How to play")
 	h.add_child(lbl("Take turns on one device. On your turn roll your dice up to 3 times (tap dice to hold them), then lock. Tap a die, then a cell: it only counts if that number belongs there. 3 mistakes and you are out. Earn gold and shop at Rook's: whetstones (d4 > d6 > d8 > d10), extra dice with powers, and curses for your rivals. A d10 shows 0-9 and its 0 is wild. Lowest turns + 2 x mistakes wins.", 18))
 
+func _on_class(ix: int, seat: int) -> void:
+	lobby["classes"][seat] = ix
+	show_lobby()
+
 func _on_pet(ix: int, seat: int) -> void:
 	lobby["pets"][seat] = ix
 	show_lobby()
@@ -335,15 +374,10 @@ func _on_count(ix: int) -> void:
 
 func start_from_lobby() -> void:
 	var seats := []
-	var used := []
 	for i in lobby["count"]:
 		var pet: String = Rules.PETS[lobby["pets"][i]]
-		if used.has(pet):
-			toast("Each player needs a different pet")
-			return
-		used.append(pet)
 		var nm: String = str(lobby["names"][i]).strip_edges()
-		seats.append({"name": nm if nm != "" else "Player %d" % (i + 1), "pet": pet, "bot": BOT_LEVELS[lobby["types"][i]]})
+		seats.append({"name": nm if nm != "" else "Player %d" % (i + 1), "pet": pet, "cls": Rules.CLASSES[lobby["classes"][i]], "bot": BOT_LEVELS[lobby["types"][i]]})
 	start_game(lobby["size"], seats)
 
 func start_game(n: int, seats: Array, seed_value: int = -1, dice_seed: int = -1) -> void:
@@ -381,12 +415,14 @@ func refresh() -> void:
 			show_pass()
 		else:
 			show_game()
+			announce_turn()
 	else:
 		show_game()
 
 func after(res: Dictionary) -> void:
 	toast(str(res.get("msg", "")))
 	refresh()
+	play_fx(res.get("fx", []))
 
 ## Every human or bot action goes through here (online play will also send it to the room).
 func act(a: Dictionary) -> Dictionary:
@@ -429,6 +465,7 @@ func bot_step() -> void:
 	if a["a"] in ["place", "buy", "end"] or "from" in m:
 		toast(("%s: " % p.name) + m if m != "" else "")
 	refresh()
+	play_fx(res.get("fx", []))
 
 func show_pass() -> void:
 	screen = "pass"
@@ -436,16 +473,16 @@ func show_pass() -> void:
 	var p := game.current()
 	body.add_child(lbl("Pass the device to", 26, C_STONE))
 	var pc := CenterContainer.new()
-	pc.add_child(portrait(p.pet, 220))
+	pc.add_child(portrait(p.pet, p.cls, 240))
 	body.add_child(pc)
 	body.add_child(lbl(p.name, 52, C_WOOD))
-	body.add_child(lbl("the " + pet_name(p.pet), 26))
+	body.add_child(lbl("the " + hero(p), 26))
 	if not p.pending.is_empty():
 		var names := []
 		for c in p.pending:
 			names.append("%s from %s" % [Rules.CURSES.get(c["k"], "Curse"), c["from"]])
 		body.add_child(lbl("Curses waiting for you: " + ", ".join(PackedStringArray(names)), 22, C_CURSE))
-	body.add_child(btn("I'm ready", show_game))
+	body.add_child(btn("I'm ready", _on_ready))
 
 # ---------- game ----------
 
@@ -453,11 +490,11 @@ func show_game() -> void:
 	screen = "game"
 	clear()
 	var p := game.current()
-	var who := "%s the %s  -  turn %d" % [p.name, pet_name(p.pet), p.turn]
+	var who := "%s the %s  -  turn %d" % [p.name, hero(p), p.turn]
 	if p.bot != "":
 		who += "  (bot, %s)" % p.bot
 	var banner := row()
-	banner.add_child(portrait(p.pet, 64))
+	banner.add_child(portrait(p.pet, p.cls, 80))
 	banner.add_child(lbl(who, 28, C_WOOD))
 	body.add_child(banner)
 	if is_online():
@@ -477,7 +514,10 @@ func show_game() -> void:
 	_dice(p)
 	_shop(p)
 	_players()
-	body.add_child(btn("Quit to lobby", _leave_online))
+	var bottom := row()
+	bottom.add_child(btn("Sound: off" if muted else "Sound: on", _on_mute))
+	bottom.add_child(btn("Quit to lobby", _leave_online))
+	body.add_child(bottom)
 
 func _phase(p: PlayerState) -> String:
 	if memo_mode:
@@ -527,6 +567,7 @@ func _board(p: PlayerState) -> void:
 			boxes.add_child(box)
 	frame.add_child(boxes)
 	var cc := CenterContainer.new()
+	cc.name = "board"
 	cc.add_child(frame)
 	body.add_child(cc)
 
@@ -594,6 +635,7 @@ func _dice(p: PlayerState) -> void:
 		var f: int = p.df[i]
 		var val: int = p.dv[i] if i < p.dv.size() else 0
 		var b := Button.new()
+		b.name = "die_%d" % i
 		b.custom_minimum_size = Vector2(92, 92)
 		var tag: String = KIND_TAGS.get(p.dk[i], "")
 		var extra := ""
@@ -647,6 +689,7 @@ func _dice(p: PlayerState) -> void:
 		dv.add_child(cap)
 		ring.add_child(dv)
 		flow.add_child(ring)
+	flow.name = "dice_row"
 	v.add_child(flow)
 	v.add_child(lbl(_phase(p), 20, C_WOOD))
 	var info := "Rolls left %d  ·  Mistakes %d/%d  ·  Hints %d  ·  Gold %d" % [p.rolls, p.mis, Rules.MAXMIS, p.hints, p.gold]
@@ -654,7 +697,9 @@ func _dice(p: PlayerState) -> void:
 		info += "  ·  Wards %d" % p.ward
 	if p.shk > 0:
 		info += "  ·  Shackled (hold %d)" % p.shk
-	v.add_child(lbl(info, 18))
+	var info_l := lbl(info, 18)
+	info_l.name = "gold_info"
+	v.add_child(info_l)
 	var r := row()
 	var rolled := not p.dv.is_empty()
 	var bt := p.bot != ""
@@ -722,7 +767,7 @@ func _players() -> void:
 	var n := game.size * game.size
 	for j in game.players.size():
 		var q: PlayerState = game.players[j]
-		var s := "%s%s the %s  -  %d/%d cells  ·  mistakes %d" % ["> " if j == game.cur else "", q.name, pet_name(q.pet), Puzzle.filled(q.grid), n, q.mis]
+		var s := "%s%s the %s  -  %d/%d cells  ·  mistakes %d" % ["> " if j == game.cur else "", q.name, hero(q), Puzzle.filled(q.grid), n, q.mis]
 		if q.done:
 			s += "  ·  cleared!"
 		if q.lost:
@@ -730,7 +775,7 @@ func _players() -> void:
 		if not q.pending.is_empty():
 			s += "  ·  %d curse(s) waiting" % q.pending.size()
 		var pr := row()
-		pr.add_child(portrait(q.pet, 44))
+		pr.add_child(portrait(q.pet, q.cls, 52))
 		pr.add_child(lbl(s, 18, C_CURSE if not q.pending.is_empty() else C_INK))
 		v.add_child(pr)
 
@@ -744,17 +789,283 @@ func show_results() -> void:
 	var place := 1
 	for j in game.ranking():
 		var q: PlayerState = game.players[j]
-		var s := "%d. %s the %s" % [place, q.name, pet_name(q.pet)]
+		var s := "%d. %s the %s" % [place, q.name, hero(q)]
 		if q.done:
 			s += "  -  score %d (%d turns, %d mistakes)" % [q.score(), q.turn, q.mis]
 		elif q.lost:
 			s += "  -  out after 3 mistakes"
 		var rr := row()
-		rr.add_child(portrait(q.pet, 56))
+		rr.add_child(portrait(q.pet, q.cls, 64))
 		rr.add_child(lbl(s, 22))
 		v.add_child(rr)
 		place += 1
 	body.add_child(btn("New game", _leave_online))
+
+# ---------- effects (animations + sound) ----------
+
+var fx_layer: Control
+var sfx_players := {}
+var muted := false
+const SFX := ["roll", "hold", "lock", "hit", "miss", "coin", "curse", "ward", "buy", "win", "turn", "memo"]
+
+func _build_fx() -> void:
+	fx_layer = Control.new()
+	fx_layer.name = "fx_layer"
+	fx_layer.set_anchors_preset(Control.PRESET_FULL_RECT)
+	fx_layer.mouse_filter = Control.MOUSE_FILTER_IGNORE
+	add_child(fx_layer)
+	for n in SFX:
+		var path := A + "sfx/%s.wav" % n
+		if ResourceLoader.exists(path):
+			var pl := AudioStreamPlayer.new()
+			pl.stream = load(path)
+			pl.volume_db = -6.0
+			add_child(pl)
+			sfx_players[n] = pl
+
+func sfx(n: String) -> void:
+	if not muted and sfx_players.has(n):
+		sfx_players[n].play()
+
+func _on_mute() -> void:
+	muted = not muted
+	show_game()
+
+func _on_ready() -> void:
+	show_game()
+	announce_turn()
+
+func _node(nm: String) -> Control:
+	return find_child(nm, true, false) as Control
+
+func _center(c: Control) -> Vector2:
+	if c == null or not is_instance_valid(c):
+		return size / 2
+	return c.get_global_rect().get_center() - fx_layer.get_global_rect().position
+
+func float_text(text: String, at: Vector2, color: Color, fsize: int = 28) -> void:
+	var l := Label.new()
+	l.text = text
+	l.add_theme_font_size_override("font_size", fsize)
+	l.add_theme_color_override("font_color", color)
+	l.add_theme_color_override("font_outline_color", C_INK)
+	l.add_theme_constant_override("outline_size", 8)
+	l.horizontal_alignment = HORIZONTAL_ALIGNMENT_CENTER
+	l.size = Vector2(420, fsize * 1.6)
+	l.position = at - l.size / 2
+	l.mouse_filter = Control.MOUSE_FILTER_IGNORE
+	fx_layer.add_child(l)
+	var tw := l.create_tween()
+	tw.set_parallel(true)
+	tw.tween_property(l, "position:y", l.position.y - 80, 1.1).set_ease(Tween.EASE_OUT).set_trans(Tween.TRANS_CUBIC)
+	tw.tween_property(l, "modulate:a", 0.0, 0.6).set_delay(0.6)
+	tw.chain().tween_callback(l.queue_free)
+
+func burst(rel: String, at: Vector2, px: int, color: Color = Color.WHITE, dur: float = 0.6) -> void:
+	var t := tex(rel)
+	if t == null:
+		return
+	var r := TextureRect.new()
+	r.texture = t
+	r.expand_mode = TextureRect.EXPAND_IGNORE_SIZE
+	r.stretch_mode = TextureRect.STRETCH_KEEP_ASPECT_CENTERED
+	r.size = Vector2(px, px)
+	r.position = at - r.size / 2
+	r.pivot_offset = r.size / 2
+	r.modulate = color
+	r.scale = Vector2(0.3, 0.3)
+	r.mouse_filter = Control.MOUSE_FILTER_IGNORE
+	fx_layer.add_child(r)
+	var tw := r.create_tween()
+	tw.set_parallel(true)
+	tw.tween_property(r, "scale", Vector2(1.15, 1.15), dur).set_trans(Tween.TRANS_BACK).set_ease(Tween.EASE_OUT)
+	tw.tween_property(r, "rotation", randf_range(-0.4, 0.4), dur)
+	tw.tween_property(r, "modulate:a", 0.0, dur * 0.6).set_delay(dur * 0.5)
+	tw.chain().tween_callback(r.queue_free)
+
+func sparkles(at: Vector2, count: int, spread: float) -> void:
+	for k in count:
+		burst("effects/sparkle.svg", at + Vector2(randf_range(-spread, spread), randf_range(-spread, spread)), randi_range(26, 54), Color.WHITE, randf_range(0.45, 0.9))
+
+func pop(c: Control, s: float = 1.25, dur: float = 0.3) -> void:
+	if c == null or not is_instance_valid(c):
+		return
+	c.pivot_offset = c.size / 2
+	c.scale = Vector2(s, s)
+	c.create_tween().tween_property(c, "scale", Vector2.ONE, dur).set_trans(Tween.TRANS_BACK).set_ease(Tween.EASE_OUT)
+
+func flash(c: Control, color: Color, dur: float = 0.6) -> void:
+	if c == null or not is_instance_valid(c):
+		return
+	c.modulate = color
+	c.create_tween().tween_property(c, "modulate", Color.WHITE, dur)
+
+func shake(c: Control) -> void:
+	if c == null or not is_instance_valid(c):
+		return
+	var x0 := c.position.x
+	var tw := c.create_tween()
+	for k in 6:
+		tw.tween_property(c, "position:x", x0 + (12.0 if k % 2 == 0 else -12.0) * (1.0 - k / 6.0), 0.045)
+	tw.tween_property(c, "position:x", x0, 0.045)
+
+func screen_flash(color: Color, dur: float = 0.7) -> void:
+	var cr := ColorRect.new()
+	cr.color = color
+	cr.set_anchors_preset(Control.PRESET_FULL_RECT)
+	cr.mouse_filter = Control.MOUSE_FILTER_IGNORE
+	fx_layer.add_child(cr)
+	var tw := cr.create_tween()
+	tw.tween_property(cr, "color:a", 0.0, dur)
+	tw.tween_callback(cr.queue_free)
+
+func roll_dice_anim(idx: Array) -> void:
+	for i in idx:
+		var d := _node("die_%d" % int(i)) as Button
+		if d == null:
+			continue
+		var final := d.text
+		d.pivot_offset = d.size / 2
+		d.rotation = randf_range(-0.9, 0.9)
+		d.scale = Vector2(0.55, 0.55)
+		var tw := d.create_tween()
+		tw.set_parallel(true)
+		tw.tween_property(d, "rotation", 0.0, 0.45).set_trans(Tween.TRANS_BACK).set_ease(Tween.EASE_OUT)
+		tw.tween_property(d, "scale", Vector2.ONE, 0.45).set_trans(Tween.TRANS_BACK).set_ease(Tween.EASE_OUT)
+		var flick := d.create_tween()
+		for k in 4:
+			flick.tween_callback(_set_text.bind(d, str(randi_range(1, 9))))
+			flick.tween_interval(0.07)
+		flick.tween_callback(_set_text.bind(d, final))
+
+func _set_text(b: Button, txt: String) -> void:
+	if is_instance_valid(b):
+		b.text = txt
+
+## Ribbon announcing whose turn it is.
+func announce_turn() -> void:
+	if game == null or game.over or fx_layer == null:
+		return
+	var p := game.current()
+	sfx("turn")
+	var text := "%s's turn" % p.name
+	if is_online() and online.my_turn() and p.bot == "":
+		text = "Your turn, %s!" % p.name
+	var box := Control.new()
+	box.size = Vector2(560, 104)
+	box.mouse_filter = Control.MOUSE_FILTER_IGNORE
+	var rt := tex("effects/banner_ribbon.svg")
+	if rt != null:
+		var r := _layer(rt, 104)
+		r.stretch_mode = TextureRect.STRETCH_SCALE
+		r.size = box.size
+		box.add_child(r)
+	else:
+		var pc := Panel.new()
+		pc.size = box.size
+		pc.add_theme_stylebox_override("panel", _box(C_RED, 12, C_GOLD, 3))
+		box.add_child(pc)
+	var l := Label.new()
+	l.text = text
+	l.size = box.size
+	l.horizontal_alignment = HORIZONTAL_ALIGNMENT_CENTER
+	l.vertical_alignment = VERTICAL_ALIGNMENT_CENTER
+	l.add_theme_font_size_override("font_size", 34)
+	l.add_theme_color_override("font_color", C_PARCH)
+	l.add_theme_color_override("font_outline_color", C_INK)
+	l.add_theme_constant_override("outline_size", 8)
+	box.add_child(l)
+	fx_layer.add_child(box)
+	var mid := Vector2((size.x - box.size.x) / 2, size.y * 0.32)
+	box.position = Vector2(-box.size.x, mid.y)
+	var tw := box.create_tween()
+	tw.tween_property(box, "position", mid, 0.35).set_trans(Tween.TRANS_BACK).set_ease(Tween.EASE_OUT)
+	tw.tween_interval(0.8)
+	tw.tween_property(box, "position:x", size.x + 20, 0.3).set_ease(Tween.EASE_IN)
+	tw.tween_callback(box.queue_free)
+
+## Plays the events of the last action(s) on the freshly rebuilt screen.
+func play_fx(list: Array) -> void:
+	if list.is_empty() or fx_layer == null or not is_inside_tree():
+		return
+	await get_tree().process_frame
+	await get_tree().process_frame
+	if not is_inside_tree():
+		return
+	var mid := size / 2
+	for e in list:
+		var t := str(e.get("t", ""))
+		match t:
+			"roll":
+				sfx("roll")
+				roll_dice_anim(e.get("dice", []))
+			"hold":
+				sfx("hold")
+				pop(_node("die_%d" % int(e["i"])), 1.18)
+			"lock":
+				sfx("lock")
+				pop(_node("dice_row"), 1.05)
+				burst("effects/lock.svg", _center(_node("dice_row")), 90)
+			"gold":
+				sfx("coin")
+				var at := _center(_node("gold_info"))
+				float_text("+%d gold (%s)" % [int(e["n"]), str(e.get("why", ""))], at, C_GOLD, 26)
+				burst("effects/coin_pop.svg", at + Vector2(-140, 0), 56)
+			"hit":
+				sfx("hit")
+				var c := _node("cell_%d" % int(e["c"]))
+				pop(c, 1.4)
+				var at2 := _center(c)
+				burst("effects/hit_glow.svg", at2, 150, Color(1, 1, 1, 0.9))
+				sparkles(at2, 4, 34)
+				float_text("+%d gold" % int(e.get("gold", 1)), at2 - Vector2(0, 30), C_GOLD, 28)
+			"miss":
+				sfx("miss")
+				var c2 := _node("cell_%d" % int(e["c"]))
+				flash(c2, Color(1, 0.3, 0.3))
+				burst("effects/miss_crack.svg", _center(c2), 120)
+				shake(_node("board"))
+				float_text("Mistake!", _center(c2) - Vector2(0, 30), C_RED, 30)
+			"safe":
+				sfx("ward")
+				var c3 := _node("cell_%d" % int(e["c"]))
+				flash(c3, Color(0.6, 0.8, 1.0))
+				float_text("Safe!", _center(c3) - Vector2(0, 30), Color("#4A7FB5"), 30)
+			"curse", "blight":
+				sfx("curse")
+				screen_flash(Color(C_CURSE, 0.45))
+				burst("effects/curse_burst.svg", mid, 380, Color.WHITE, 1.0)
+				var nm := "Blight" if t == "blight" else str(Rules.CURSES.get(e.get("k", ""), "Curse"))
+				float_text(nm + "!", mid, C_CURSE, 56)
+				for i in e.get("dice", []):
+					flash(_node("die_%d" % int(i)), Color(0.75, 0.4, 1.0), 1.0)
+			"ward":
+				sfx("ward")
+				burst("icons/ward.svg", mid, 300, Color.WHITE, 0.9)
+				float_text("Ward blocked %s!" % Rules.CURSES.get(e.get("k", ""), "a curse"), mid, Color("#4A7FB5"), 40)
+			"cast":
+				sfx("curse")
+				burst("effects/curse_burst.svg", mid, 220, Color.WHITE, 0.7)
+				float_text("%s sent to %s!" % [Rules.CURSES.get(e.get("k", ""), "Curse"), game.players[int(e["to"])].name], mid, C_CURSE, 36)
+			"buy", "upgrade":
+				sfx("buy")
+				if t == "upgrade":
+					pop(_node("die_%d" % int(e["i"])), 1.3)
+					sparkles(_center(_node("die_%d" % int(e["i"]))), 3, 30)
+			"memo":
+				sfx("memo")
+				pop(_node("cell_%d" % int(e["c"])), 1.2)
+			"combo":
+				sfx("win")
+				sparkles(mid, 10, 160)
+				float_text("Combo! +%d hint%s" % [int(e["n"]), "s" if int(e["n"]) > 1 else ""], mid, C_GOLD, 44)
+			"win":
+				sfx("win")
+				sparkles(mid, 26, 260)
+				float_text("Dungeon cleared!", mid, C_GOLD, 56)
+			"out":
+				sfx("miss")
+				screen_flash(Color(C_RED, 0.35))
 
 # ---------- online ----------
 
@@ -772,12 +1083,12 @@ func ensure_online() -> Online:
 
 func _me() -> Array:
 	var nm: String = str(lobby["names"][0]).strip_edges()
-	return [nm if nm != "" else "Player", Rules.PETS[lobby["pets"][0]]]
+	return [nm if nm != "" else "Player", Rules.PETS[lobby["pets"][0]], Rules.CLASSES[lobby["classes"][0]]]
 
 func _on_create_online() -> void:
 	toast("Opening a room...")
 	var me := _me()
-	var err: String = await ensure_online().create(lobby["size"], me[0], me[1])
+	var err: String = await ensure_online().create(lobby["size"], me[0], me[1], me[2])
 	if err != "":
 		toast(err)
 		return
@@ -789,7 +1100,7 @@ func _on_join_online() -> void:
 		return
 	toast("Joining...")
 	var me := _me()
-	var err: String = await ensure_online().join(join_code, me[0], me[1])
+	var err: String = await ensure_online().join(join_code, me[0], me[1], me[2])
 	if err != "":
 		toast(err)
 		return
@@ -804,6 +1115,7 @@ func _on_online_changed() -> void:
 			shown_cur = -1
 		if screen == "game" or screen == "online_lobby" or screen == "results" or screen == "lobby":
 			refresh()
+			play_fx(online.take_fx())
 	elif screen == "online_lobby" or screen == "lobby":
 		show_online_lobby()
 
@@ -812,14 +1124,14 @@ func show_online_lobby() -> void:
 	clear()
 	body.add_child(lbl("Room code", 24, C_STONE))
 	body.add_child(lbl(online.code, 72, C_WOOD))
-	body.add_child(lbl("Share this code. Friends open the same link, pick a name and pet, and tap Join.", 18))
+	body.add_child(lbl("Share this code. Friends open the same link, pick a name, race and class, and tap Join.", 18))
 	var v := panel("Players")
 	var seats := online.seats_sorted()
 	var keys := online.seat_keys_sorted()
 	for k in keys.size():
 		var s: Dictionary = seats[k]
 		var r := row()
-		r.add_child(portrait(s.get("pet", ""), 48))
+		r.add_child(portrait(s.get("pet", ""), s.get("cls", ""), 56))
 		var tag := ""
 		var is_bot: bool = s.get("bot", "") != ""
 		if is_bot:

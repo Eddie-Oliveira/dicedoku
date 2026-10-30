@@ -26,7 +26,7 @@ func _run() -> void:
 	root.add_child(ui)
 	ui.build()
 	await snap("01_lobby")
-	var seats := [{"name": "Ana", "pet": "kitten_wizard"}, {"name": "Bob", "pet": "puppy_knight"}, {"name": "Cy", "pet": "fox_rogue"}]
+	var seats := [{"name": "Ana", "pet": "cat", "cls": "wizard"}, {"name": "Bob", "pet": "dog", "cls": "knight"}, {"name": "Cy", "pet": "fox", "cls": "rogue"}]
 	ui.start_game(9, seats, 1582125694, 3)
 	await snap("02_pass")
 	ui.show_game()

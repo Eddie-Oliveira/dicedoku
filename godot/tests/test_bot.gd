@@ -4,7 +4,7 @@ extends RefCounted
 func bot_seats(levels: Array) -> Array:
 	var out := []
 	for i in levels.size():
-		out.append({"name": "Bot%d" % i, "pet": Rules.PETS[i], "bot": levels[i]})
+		out.append({"name": "Bot%d" % i, "pet": Rules.PETS[i], "cls": Rules.CLASSES[i], "bot": levels[i]})
 	return out
 
 func test_forced_cells_are_correct(t) -> void:
