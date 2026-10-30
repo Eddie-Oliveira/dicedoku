@@ -103,3 +103,25 @@ func test_full_games_through_ui(t) -> void:
 		t.check(ui.screen == "results", "%dx%d with %d players reaches results (guard %d)" % [cfg[0], cfg[0], cfg[1], guard])
 		print("  UI game %dx%d, %d players: %d turns taken" % [cfg[0], cfg[0], cfg[1], guard])
 		ui.queue_free()
+
+func test_board_layout(t) -> void:
+	# Every cell button sits in the box it belongs to, in reading order (cell index = row * n + col).
+	for n in [4, 6, 9]:
+		var ui = make_ui(t)
+		ui.start_game(n, seats(1), 3, 3)
+		ui.show_game()
+		var g: Game = ui.game
+		var found := 0
+		for i in n * n:
+			var b: Button = ui.find_child("cell_%d" % i, true, false)
+			if b == null:
+				continue
+			found += 1
+			var box: GridContainer = b.get_parent()
+			var k := b.get_index()
+			var y := i / n
+			var x := i % n
+			t.check(k == (y % g.br) * g.bc + (x % g.bc), "%dx%d cell %d in wrong spot inside its box" % [n, n, i])
+			t.check(box.get_index() == (y / g.br) * (n / g.bc) + x / g.bc, "%dx%d cell %d in wrong box" % [n, n, i])
+		t.check(found == n * n, "%dx%d: all %d cells present (%d)" % [n, n, n * n, found])
+		ui.queue_free()

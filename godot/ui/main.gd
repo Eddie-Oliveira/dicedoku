@@ -303,44 +303,63 @@ func _phase(p: PlayerState) -> String:
 		return "Roll your dice"
 	return "Tap dice to hold, then Roll again or Lock"
 
+## Board = dark frame; boxes are separated by thick gaps and cells by thin gaps, so the lines are the
+## background showing through. Gaps of 3/7 px survive any screen scaling (1 px borders vanished on phones).
 func _board(p: PlayerState) -> void:
 	var n := game.size
-	var cc := CenterContainer.new()
-	var grid := GridContainer.new()
-	grid.columns = n
-	grid.add_theme_constant_override("h_separation", 0)
-	grid.add_theme_constant_override("v_separation", 0)
-	var px := int(min(78.0, 664.0 / n))
+	var thin := 3
+	var thick := 7
+	var px := int(min(74.0, (660.0 - thick * (n / game.bc + 1) - thin * n) / n))
 	var sv: int = p.dv[sel] if sel >= 0 and sel < p.dv.size() else 0
-	for i in n * n:
-		var v: int = p.grid[i]
-		var given: bool = game.puz[i] != 0
-		var y := i / n
-		var x := i % n
-		var b := Button.new()
-		b.custom_minimum_size = Vector2(px, px)
-		b.text = str(v) if v != 0 else ""
-		var bgc := C_STONE.darkened(0.15) if given else C_STONE.lightened(0.55)
-		if v == 0 and sv > 0 and game.legal(p, i, sv):
-			bgc = C_TORCH.lightened(0.25)
-		var sb := StyleBoxFlat.new()
-		sb.bg_color = bgc
-		sb.border_color = C_INK
-		sb.border_width_left = 4 if x % game.bc == 0 else 1
-		sb.border_width_top = 4 if y % game.br == 0 else 1
-		sb.border_width_right = 4 if x == n - 1 else 0
-		sb.border_width_bottom = 4 if y == n - 1 else 0
-		for st in ["normal", "hover", "pressed", "disabled"]:
-			b.add_theme_stylebox_override(st, sb)
-		b.add_theme_stylebox_override("focus", StyleBoxEmpty.new())
-		var fc := C_PARCH if given else C_GLOW
-		for st in ["font_color", "font_hover_color", "font_pressed_color"]:
-			b.add_theme_color_override(st, fc)
-		b.add_theme_font_size_override("font_size", int(px * 0.55))
-		b.pressed.connect(_on_cell.bind(i))
-		grid.add_child(b)
-	cc.add_child(grid)
+	var frame := PanelContainer.new()
+	var fsb := StyleBoxFlat.new()
+	fsb.bg_color = C_INK
+	fsb.set_corner_radius_all(6)
+	fsb.content_margin_left = thick
+	fsb.content_margin_right = thick
+	fsb.content_margin_top = thick
+	fsb.content_margin_bottom = thick
+	frame.add_theme_stylebox_override("panel", fsb)
+	var boxes := GridContainer.new()
+	boxes.columns = n / game.bc
+	boxes.add_theme_constant_override("h_separation", thick)
+	boxes.add_theme_constant_override("v_separation", thick)
+	for by in n / game.br:
+		for bx in n / game.bc:
+			var box := GridContainer.new()
+			box.columns = game.bc
+			box.add_theme_constant_override("h_separation", thin)
+			box.add_theme_constant_override("v_separation", thin)
+			for a in game.br:
+				for c in game.bc:
+					box.add_child(_cell(p, (by * game.br + a) * n + bx * game.bc + c, px, sv))
+			boxes.add_child(box)
+	frame.add_child(boxes)
+	var cc := CenterContainer.new()
+	cc.add_child(frame)
 	body.add_child(cc)
+
+func _cell(p: PlayerState, i: int, px: int, sv: int) -> Button:
+	var v: int = p.grid[i]
+	var given: bool = game.puz[i] != 0
+	var b := Button.new()
+	b.name = "cell_%d" % i
+	b.custom_minimum_size = Vector2(px, px)
+	b.text = str(v) if v != 0 else ""
+	var bgc := C_STONE.darkened(0.15) if given else C_STONE.lightened(0.55)
+	if v == 0 and sv > 0 and game.legal(p, i, sv):
+		bgc = C_TORCH.lightened(0.25)
+	var sb := StyleBoxFlat.new()
+	sb.bg_color = bgc
+	for st in ["normal", "hover", "pressed", "disabled"]:
+		b.add_theme_stylebox_override(st, sb)
+	b.add_theme_stylebox_override("focus", StyleBoxEmpty.new())
+	var fc := C_PARCH if given else C_GLOW
+	for st in ["font_color", "font_hover_color", "font_pressed_color"]:
+		b.add_theme_color_override(st, fc)
+	b.add_theme_font_size_override("font_size", int(px * 0.55))
+	b.pressed.connect(_on_cell.bind(i))
+	return b
 
 func _tracker(p: PlayerState) -> void:
 	var parts := []

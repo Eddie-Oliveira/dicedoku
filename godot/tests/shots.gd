@@ -45,6 +45,10 @@ func _run() -> void:
 	await snap("04_placing")
 	await snap("05_shop", 1000)
 	await snap("06_party", 4000)
+	# phone-sized window: every grid line must still show
+	root.size = Vector2i(390, 844)
+	await snap("08_board_phone")
+	root.size = Vector2i(720, 1280)
 	g.over = true
 	g.players[0].done = true
 	g.players[0].turn = 18
