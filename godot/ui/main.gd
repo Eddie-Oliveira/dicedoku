@@ -281,11 +281,13 @@ func img(rel: String, px: int) -> TextureRect:
 	r.custom_minimum_size = Vector2(px, px)
 	return r
 
-func clear() -> void:
+## Clears the page. Leaving the game screen also closes any open tab; redrawing the game keeps it open.
+func clear(keep_tab: bool = false) -> void:
 	if tabbar != null:
 		tabbar.visible = false
 		drawer.visible = false
-		drawer_open = ""
+		if not keep_tab:
+			drawer_open = ""
 	for c in body.get_children():
 		body.remove_child(c)
 		c.queue_free()
@@ -526,6 +528,7 @@ func refresh() -> void:
 		show_results()
 	elif game.cur != shown_cur:
 		shown_cur = game.cur
+		drawer_open = ""
 		sel = -1
 		upgrade_mode = false
 		memo_mode = false
@@ -606,8 +609,9 @@ func show_pass() -> void:
 # ---------- game ----------
 
 func show_game() -> void:
+	var keep := screen == "game"
 	screen = "game"
-	clear()
+	clear(keep)
 	var p := game.current()
 	var who := Lang.f("{0} the {1}  -  turn {2}", [p.name, hero(p), p.turn])
 	if p.bot != "":

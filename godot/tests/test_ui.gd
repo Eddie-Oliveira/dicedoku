@@ -168,6 +168,9 @@ func test_modes_drawer_tuner(t) -> void:
 	t.check(ui.find_child("cell_0", true, false) != null, "board visible")
 	ui.toggle_drawer("shop")
 	t.check(ui.drawer.visible and ui.drawer_open == "shop" and ui.drawer_box.get_child_count() >= 2, "shop drawer opens")
+	ui.game.current().gold = 30
+	ui._on_buy("ward")
+	t.check(ui.drawer.visible and ui.drawer_open == "shop", "shop stays open after buying")
 	ui.toggle_drawer("party")
 	t.check(ui.drawer.visible and ui.drawer_open == "party", "switch to party")
 	ui.toggle_drawer("party")
