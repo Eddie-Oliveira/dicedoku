@@ -17,6 +17,19 @@ const CLASS_NAMES := {"wizard": "Wizard", "knight": "Knight", "rogue": "Rogue", 
 ## Older single-image portraits used when the layered art is missing.
 const LEGACY_PORTRAIT := {"cat": "kitten_wizard", "dog": "puppy_knight", "fox": "fox_rogue", "bunny": "bunny_bard"}
 
+const BOT_NAMES := ["Pip", "Bramble", "Clover", "Mochi", "Biscuit", "Nutmeg", "Pebble", "Tumble", "Hazel", "Sprout"]
+
+## A random race + class for a bot, avoiding combinations already taken when possible (skills will depend on both).
+static func random_hero(taken: Array) -> Array:
+	var free := []
+	for r in PETS:
+		for c in CLASSES:
+			if not taken.has([r, c]):
+				free.append([r, c])
+	if free.is_empty():
+		return [PETS[randi() % PETS.size()], CLASSES[randi() % CLASSES.size()]]
+	return free[randi() % free.size()]
+
 static func hero_title(race: String, cls: String) -> String:
 	return ("%s %s" % [PET_NAMES.get(race, race), CLASS_NAMES.get(cls, "")]).strip_edges()
 const CURSES := {"hex": "Hex", "blight": "Blight", "shackle": "Shackle"}

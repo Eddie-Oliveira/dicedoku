@@ -312,7 +312,7 @@ func show_lobby() -> void:
 		title.add_child(img("ui/logo_dice.svg", 96))
 	title.add_child(lbl("Dicedoku", 52, C_WOOD))
 	body.add_child(title)
-	body.add_child(lbl("v0.11-dev", 18, C_STONE))
+	body.add_child(lbl("v0.11", 18, C_STONE))
 	var v := panel("New game")
 	var r := row()
 	r.add_child(lbl("Mode"))
@@ -346,10 +346,15 @@ func show_lobby() -> void:
 		for st in SEAT_TYPES:
 			ot.add_item(st)
 		ot.select(lobby["types"][i])
-		ot.item_selected.connect(func(ix: int) -> void: lobby["types"][i] = ix)
+		ot.item_selected.connect(_on_type.bind(i))
 		pr.add_child(ot)
 		seat.add_child(pr)
 		var pr2 := row()
+		if lobby["types"][i] != 0:
+			pr2.add_child(lbl("Bots pick a random race and class", 16, C_STONE))
+			seat.add_child(pr2)
+			v.add_child(seat)
+			continue
 		pr2.add_child(lbl("Race", 18, C_STONE))
 		var op := OptionButton.new()
 		for race in Rules.PETS:
@@ -384,7 +389,8 @@ func show_lobby() -> void:
 	jr.add_child(ce)
 	jr.add_child(btn("Join", _on_join_online))
 	o.add_child(jr)
-	body.add_child(btn("Dice number tuner", show_tuner))
+	if OS.is_debug_build() and OS.has_feature("editor"):
+		body.add_child(btn("Dice number tuner (dev)", show_tuner))
 	var spacer := Control.new()
 	spacer.custom_minimum_size = Vector2(0, 96)
 	body.add_child(spacer)
@@ -412,6 +418,10 @@ func _how_to(parent: Control) -> void:
 		h.add_child(lbl(sec[0], 20, C_WOOD))
 		h.add_child(lbl(sec[1], 17))
 
+func _on_type(ix: int, seat: int) -> void:
+	lobby["types"][seat] = ix
+	show_lobby()
+
 func _on_class(ix: int, seat: int) -> void:
 	lobby["classes"][seat] = ix
 	show_lobby()
@@ -429,7 +439,15 @@ func start_from_lobby() -> void:
 	for i in lobby["count"]:
 		var pet: String = Rules.PETS[lobby["pets"][i]]
 		var nm: String = str(lobby["names"][i]).strip_edges()
-		seats.append({"name": nm if nm != "" else "Player %d" % (i + 1), "pet": pet, "cls": Rules.CLASSES[lobby["classes"][i]], "bot": BOT_LEVELS[lobby["types"][i]]})
+		var cls: String = Rules.CLASSES[lobby["classes"][i]]
+		if lobby["types"][i] != 0:
+			var taken := []
+			for st in seats:
+				taken.append([st["pet"], st["cls"]])
+			var hero := Rules.random_hero(taken)
+			pet = hero[0]
+			cls = hero[1]
+		seats.append({"name": nm if nm != "" else "Player %d" % (i + 1), "pet": pet, "cls": cls, "bot": BOT_LEVELS[lobby["types"][i]]})
 	var m: Dictionary = MODES[lobby["mode"]]
 	start_game(m["size"], seats, -1, -1, m["givens"], m["q"])
 

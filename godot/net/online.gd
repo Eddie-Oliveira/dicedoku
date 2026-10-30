@@ -194,18 +194,18 @@ func add_bot(level: String) -> String:
 	var seats := seats_sorted()
 	if seats.size() >= MAX_SEATS:
 		return "Room is full"
-	var used := []
+	var taken := []
+	var names := []
 	for s in seats:
-		used.append(s.get("pet", ""))
-	var pet := ""
-	for p in Rules.PETS:
-		if not used.has(p):
-			pet = p
+		taken.append([s.get("pet", ""), s.get("cls", "")])
+		names.append(s.get("name", ""))
+	var hero := Rules.random_hero(taken)
+	var bname := "Bot"
+	for nm in DRng.shuf(Rules.BOT_NAMES, DRng.new(randi())):
+		if not names.has(nm):
+			bname = nm
 			break
-	if pet == "":
-		pet = Rules.PETS[randi() % Rules.PETS.size()]
-	var cls: String = Rules.CLASSES[randi() % Rules.CLASSES.size()]
-	var seat := {"name": "%s bot" % Rules.PET_NAMES[pet], "pet": pet, "cls": cls, "uid": "bot", "bot": level}
+	var seat := {"name": bname, "pet": hero[0], "cls": hero[1], "uid": "bot", "bot": level}
 	var k := next_seat_key()
 	var w: Dictionary = await db.req(PUT, "rooms/%s/seats/%s" % [code, k], seat)
 	if not w["ok"]:

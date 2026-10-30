@@ -49,7 +49,7 @@ func test_online_room(t) -> void:
 	await host.add_bot("hard")
 	await sync([host, guest])
 	var ss := guest.seats_sorted()
-	t.check(ss.size() == 3 and ss[1]["name"] == "Bob" and ss[2]["bot"] == "hard" and ss[2]["cls"] != "", "seats in join order, bot added with a class: %s" % [ss])
+	t.check(ss.size() == 3 and ss[1]["name"] == "Bob" and ss[2]["bot"] == "hard" and ss[2]["cls"] != "" and Rules.BOT_NAMES.has(ss[2]["name"]), "seats in join order, bot added with a random hero and a name: %s" % [ss])
 	t.check((await guest.start()) != "", "only the host can start")
 	t.check((await host.start()) == "", "host starts")
 	await sync([host, guest])

@@ -199,3 +199,23 @@ func test_lobby_howto_tab_and_tiles(t) -> void:
 		kinds[ui.tile_path(p0, i, false)] = true
 	t.check(kinds.size() == 1 or kinds.size() >= 4, "variants spread over the board when present (%d kinds)" % kinds.size())
 	ui.queue_free()
+
+func test_bots_random_heroes(t) -> void:
+	var seen := {}
+	for k in 12:
+		var ui = make_ui(t)
+		ui.lobby["count"] = 4
+		ui.lobby["types"] = [0, 1, 2, 3]
+		ui.lobby["pets"] = [0, 0, 0, 0]
+		ui.lobby["classes"] = [0, 0, 0, 0]
+		ui.start_from_lobby()
+		var combos := {}
+		for p in ui.game.players:
+			combos["%s/%s" % [p.pet, p.cls]] = true
+			if p.bot != "":
+				seen["%s/%s" % [p.pet, p.cls]] = true
+		t.check(combos.size() == 4, "every seat has a different race+class combo")
+		t.check(ui.game.players[0].pet == "cat" and ui.game.players[0].cls == "wizard", "human keeps the chosen hero")
+		ui.queue_free()
+	t.check(seen.size() >= 8, "bots spread over many combos (%d)" % seen.size())
+	t.check(Rules.random_hero([]).size() == 2, "random_hero returns race and class")
