@@ -19,7 +19,7 @@ const SIZES := [4, 9]
 ## Lobby modes: Blitz 4x4, or 9x9 with how many numbers start on the board (quota spreads them evenly over the digits).
 const MODES := [
 	{"name": "Blitz 4x4", "size": 4, "givens": -1, "q": ""},
-	{"name": "9x9 Cozy (42 numbers shown)", "size": 9, "givens": 42, "q": "even"},
+	{"name": "9x9 Cozy (42 numbers shown)", "size": 9, "givens": 42, "q": "boost"},
 	{"name": "9x9 Adventurer (36 shown)", "size": 9, "givens": 36, "q": "even"},
 	{"name": "9x9 Hero (32 shown)", "size": 9, "givens": 32, "q": "even"},
 	{"name": "9x9 Legend (28 shown)", "size": 9, "givens": 28, "q": "even"},
