@@ -168,7 +168,7 @@ func show_lobby() -> void:
 	game = null
 	clear()
 	body.add_child(lbl("Dicedoku", 48, C_WOOD))
-	body.add_child(lbl("v0.9 test build - plain look, art coming next", 18, C_STONE))
+	body.add_child(lbl("v0.10-dev - next version in progress", 18, C_STONE))
 	var v := panel("New game")
 	var r := row()
 	r.add_child(lbl("Grid"))
