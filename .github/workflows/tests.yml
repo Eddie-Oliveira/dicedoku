@@ -76,11 +76,15 @@ jobs:
           git -c user.name=ci -c user.email=ci@users.noreply.github.com commit -q -m "screenshots for ${GITHUB_SHA}"
           git push -q -f "https://x-access-token:${{ secrets.GITHUB_TOKEN }}@github.com/${{ github.repository }}" ci-shots
 
+  # One Pages site, two builds: branch "stable" at the root (what players use), branch "main" at /dev/ (next version).
   web:
     needs: godot-tests
-    if: github.ref == 'refs/heads/main'
+    if: github.ref == 'refs/heads/main' || github.ref == 'refs/heads/stable'
+    concurrency:
+      group: pages
+      cancel-in-progress: false
     runs-on: ubuntu-latest
-    timeout-minutes: 20
+    timeout-minutes: 25
     permissions:
       contents: read
       pages: write
@@ -90,6 +94,13 @@ jobs:
       url: ${{ steps.deploy.outputs.page_url }}
     steps:
       - uses: actions/checkout@v4
+        with:
+          ref: main
+          path: main
+      - uses: actions/checkout@v4
+        with:
+          ref: stable
+          path: stable
       - name: Cache Godot
         id: cache
         uses: actions/cache@v4
@@ -118,15 +129,16 @@ jobs:
           mkdir -p ~/.local/share/godot/export_templates/$V
           mv templates/* ~/.local/share/godot/export_templates/$V/
           rm t.tpz
-      - name: Import project
-        run: ~/godot/godot --headless --path godot --import || true
-      - name: Export for the browser
+      - name: Export stable (site root) and main (/dev/)
         run: |
-          mkdir -p build/web
-          ~/godot/godot --headless --path godot --export-release "Web" ../build/web/index.html
-          ls -la build/web
+          mkdir -p site/dev
+          ~/godot/godot --headless --path stable/godot --import || true
+          ~/godot/godot --headless --path stable/godot --export-release "Web" "$GITHUB_WORKSPACE/site/index.html"
+          ~/godot/godot --headless --path main/godot --import || true
+          ~/godot/godot --headless --path main/godot --export-release "Web" "$GITHUB_WORKSPACE/site/dev/index.html"
+          ls -la site site/dev
       - uses: actions/upload-pages-artifact@v3
         with:
-          path: build/web
+          path: site
       - id: deploy
         uses: actions/deploy-pages@v4
