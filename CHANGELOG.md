@@ -35,6 +35,14 @@ Closes: Online rooms, bots, art in the UI, stable/dev links (DOCS part); Godot p
 - Tests: n/a
 - Needs: DESIGN: confirm GDD wording of useless/dead faces and shop-once-per-turn. CODE: stale comment in game.gd header ("online replay later"); check results order text matches UI.
 
+### [2026-10-30] v0.10 · Released to stable
+areas: DOCS | CODE
+agent: lead
+- Eddie approved: main promoted to branch `stable` (site root); tag `v0.10`. Version label and project version set to 0.10; docs/RELEASES.md updated.
+- Files: godot/ui/main.gd, godot/project.godot, docs/RELEASES.md
+- Tests: CI on the release commit (see run); live check of the root URL by Eddie
+- Needs: none
+
 ### [2026-10-29] v0.10-dev · Playtest round 2 + friends-and-family polish
 areas: CODE | DESIGN
 agent: lead (code role)

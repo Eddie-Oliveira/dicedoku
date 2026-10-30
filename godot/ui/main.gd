@@ -293,7 +293,7 @@ func show_lobby() -> void:
 		title.add_child(img("ui/logo_dice.svg", 96))
 	title.add_child(lbl("Dicedoku", 52, C_WOOD))
 	body.add_child(title)
-	body.add_child(lbl("v0.10-dev - next version in progress", 18, C_STONE))
+	body.add_child(lbl("v0.10", 18, C_STONE))
 	var v := panel("New game")
 	var r := row()
 	r.add_child(lbl("Grid"))

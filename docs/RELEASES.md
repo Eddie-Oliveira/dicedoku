@@ -1,14 +1,15 @@
 # Dicedoku — Release notes
 
-## v0.10-dev (testing at /dev/)
-Play: https://eddie-oliveira.github.io/dicedoku/dev/
-- Online rooms: make a room, share the 5-letter code, play on separate devices (2-4 seats).
-- Computer players: Easy, Normal and Hard bots in the lobby.
-- If a player is away for 90 seconds, the host can give their seat to a bot.
-- New look: dungeon map, parchment panels, stone tiles, gem dice, pet portraits, Rook in the shop.
-- Fix: board lines no longer disappear on some screen sizes (also in v0.9).
+## v0.10 (current stable, released 2026-10-30)
+Play at https://eddie-oliveira.github.io/dicedoku/
+- Choose a race (Cat, Dog, Fox, Bunny, Bear, Mouse) and a class (Wizard, Knight, Rogue, Bard, Cleric, Ranger) for your hero.
+- Play online with a 5-letter room code, or against bots (easy, normal, hard) on one device.
+- Every player gets their own board: the same puzzle, shuffled, so it is equally hard but nobody can copy.
+- New art, animations and sound effects (Sound on/off button).
+- Rule changes: Blight hits when the rival locks; Shackle costs 10 gold; Mirror dice count as value -1, value or +1; each unused roll pays 1 gold; new Scribe's quill shows a tile's possible numbers.
+- Clear gold rules in the shop and in How to play.
 
-## v0.9 (current stable)
+## v0.9 (previous stable)
 Play: https://eddie-oliveira.github.io/dicedoku/
 - First Godot version, runs in the browser.
 - Pass-and-play for 1-4 players on one device, with a "pass the device" screen.
