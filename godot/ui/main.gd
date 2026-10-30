@@ -354,7 +354,7 @@ func show_lobby() -> void:
 	ol.item_selected.connect(_on_lang)
 	lr.add_child(ol)
 	body.add_child(lr)
-	body.add_child(lbl("v0.11", 18, C_STONE))
+	body.add_child(lbl("v0.12-dev", 18, C_STONE))
 	var v := panel("New game")
 	var r := row()
 	r.add_child(lbl("Mode"))

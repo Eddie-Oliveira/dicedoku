@@ -35,6 +35,18 @@ Closes: Online rooms, bots, art in the UI, stable/dev links (DOCS part); Godot p
 - Tests: n/a
 - Needs: DESIGN: confirm GDD wording of useless/dead faces and shop-once-per-turn. CODE: stale comment in game.gd header ("online replay later"); check results order text matches UI.
 
+### [2026-10-30] v0.12-dev · Languages (6) and guided tutorial
+areas: CODE | DESIGN | DOCS | ASSETS
+agent: lead (code role) + translation agent
+- Language picker on the home screen: English, Português (Brasil), Español, Français, Italiano, 简体中文; saved per device, first launch follows the device locale. `core/lang.gd` with `{n}` placeholders; all UI, game, online and tutorial texts translatable; 239 source strings (`tools/extract_strings.py` -> `godot/i18n/source_en.json`, CI checks it is current).
+- Translations by a translation agent (all keys, placeholders and edge spaces verified); native review list in docs/tech/TRANSLATIONS.md.
+- Chinese font: `fonts` workflow builds a Noto Sans SC subset (171 KB, weight 500, only the characters used; SIL OFL, license file included) as a fallback of the default font.
+- Guided tutorial on rails (lobby button): scripted 4x4 turn with Rook as the guide, 12 steps (roll, hold, reroll, lock + gold for unused roll, pick, place on the shining tile, gold/mistakes, shop tab, whetstones/curses, end turn). Only the expected action works; the target pulses; Skip/Finish; finishing is remembered (`tutorial_done`) for a future first-launch prompt.
+- Fix: an open Shop/Party tab no longer closes on every redraw (e.g. after buying); it closes on turn change.
+- Files: godot/core/{lang,game,rules}.gd, godot/net/online.gd, godot/ui/main.gd, godot/i18n/*, godot/assets/fonts/*, godot/tests/{test_i18n,test_ui,shots}.gd, tools/extract_strings.py, .github/workflows/{fonts,tests}.yml, docs/tech/TRANSLATIONS.md
+- Tests: CI 50 tests, 0 failures (tutorial on rails, language switch, translation completeness/placeholders). Screenshots of the lobby in all 6 languages and the tutorial in zh_CN and pt_BR reviewed.
+- Needs: DESIGN: native-speaker review of translations; decide whether the tutorial auto-starts on first launch for the full release.
+
 ### [2026-10-30] v0.11 · Released to stable
 areas: CODE | DESIGN | DOCS
 agent: lead
