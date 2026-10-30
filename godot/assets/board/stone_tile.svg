@@ -1,14 +1,3 @@
 <svg xmlns="http://www.w3.org/2000/svg" width="64" height="64" viewBox="0 0 64 64">
-<defs>
-<radialGradient id="s" cx="0.5" cy="0.5" r="0.7"><stop offset="0" stop-color="#C9C4BD"/><stop offset="0.55" stop-color="#ADA8A1"/><stop offset="1" stop-color="#8A8580"/></radialGradient>
-</defs>
-<rect width="64" height="64" fill="#77726D"/>
-<rect x="2" y="2" width="60" height="60" rx="5" fill="url(#s)"/>
-<path d="M3 6 Q3 3 6 3 H58 Q61 3 61 6" fill="none" stroke="#DAD6D0" stroke-width="1.5" opacity="0.8"/>
-<path d="M61 8 V58 Q61 61 58 61 H6" fill="none" stroke="#6F6A65" stroke-width="1.5" opacity="0.7"/>
-<path d="M8 50 L13 46 L12 41 M13 46 L18 47" fill="none" stroke="#6F6A65" stroke-width="1" stroke-linecap="round" opacity="0.6"/>
-<path d="M50 9 L54 13 L58 12" fill="none" stroke="#6F6A65" stroke-width="1" stroke-linecap="round" opacity="0.55"/>
-<circle cx="52" cy="50" r="1.2" fill="#7E7974" opacity="0.6"/>
-<circle cx="11" cy="14" r="1" fill="#7E7974" opacity="0.5"/>
-<circle cx="47" cy="55" r="0.8" fill="#7E7974" opacity="0.5"/>
+<defs><radialGradient id="s" cx="0.5" cy="0.5" r="0.72"><stop offset="0" stop-color="#FBF9FD"/><stop offset="0.6" stop-color="#F4F0F9"/><stop offset="1" stop-color="#E3DBEE"/></radialGradient></defs><rect width="64" height="64" fill="#D8CEE5"/><rect x="2" y="2" width="60" height="60" rx="10" fill="url(#s)"/><path d="M4 12 Q4 4 12 4 H52" fill="none" stroke="#FFFFFF" stroke-width="2.5" stroke-linecap="round" opacity="0.95"/><path d="M60 14 V52 Q60 60 52 60 H14" fill="none" stroke="#CFC3DE" stroke-width="2" stroke-linecap="round"/><g fill="#E1D8EC"><ellipse cx="10" cy="53" rx="3.5" ry="2.5"/><ellipse cx="15" cy="56" rx="2" ry="1.5"/><ellipse cx="54" cy="10" rx="2.5" ry="2"/></g><path d="M53 50.5Q53.5 52.5 55.5 53Q53.5 53.5 53 55.5Q52.5 53.5 50.5 53Q52.5 52.5 53 50.5Z" fill="#FFFFFF"/>
 </svg>

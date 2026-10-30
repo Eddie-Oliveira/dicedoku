@@ -1,8 +1,42 @@
-# Dicedoku art style guide (v0.9)
+# Dicedoku art style guide (v0.11)
 
-Cozy fantasy tavern UI over an inked dungeon map. Cute, round, original animal adventurers. Dice are glowing gems.
+Cozy, cute, pastel tabletop adventure for all ages: soft storybook "sticker" look over a pastel adventure map. Cute, round, original animal adventurers. Dice are glowing gems (gem dice keep their v0.9 jewel colours).
 
-## Palette
+## Pastel look (v0.11)
+- Colours: peach, mint/sage, lavender, baby blue, butter yellow, blush pink on warm cream. No pure black anywhere.
+- Outlines: warm soft brown `#7A5C4A` (details such as mouths and pupils `#5E4436`), round joins and caps, about 4 px on 64 px icons and 256 px characters, about 6 px on the 512 px merchant.
+- Shapes: rounded and chunky; fur tufts on cheeks and chest, a little cowlick on top of the head.
+- Eyes: big glossy ovals (rx 13.5, ry 16) with a brown-to-warm gradient, a lighter lower crescent and two white highlights (large top-right, small bottom-left). Blush ellipses `#FF9DB0` at 55 % with a tiny white dot.
+- Shading: 2 tones or a light gradient plus one soft white highlight; no hard shadows.
+- Decoration: small 4-point sparkles (white / butter `#FFF6C8`), tiny hearts `#FFB3C6`, near props and on emblems.
+- Icons get a white "sticker" backing (the silhouette stroked 7 px white under the art) so they pop on dark and light backgrounds.
+- Curses stay purple but lavender-soft; gold stays warm gold (`#FFD66E` fill, `#EBAE45` shade).
+
+## Pastel UI palette (v0.11)
+Contrast ratios are WCAG, measured against the panel fill `#FFF8EF` unless noted.
+
+| Role | Hex | Notes |
+|---|---|---|
+| Page background | `#F8EDE3` | warm cream behind everything |
+| Panel fill | `#FFF8EF` | `ui/parchment_panel.svg` centre |
+| Panel border | `#B88A74` | 4 px soft brown; inner line `#EFC6B4` |
+| Button fill | `#F7CF94` | honey; `ui/wood_bar.svg` runs `#FFE9C2` to `#EFBC7E`, border `#A97C5E` |
+| Button text | `#5A3B2B` | 6.8:1 on `#F7CF94`, 5.8:1 on the darkest button edge |
+| Body text | `#5A4136` | 8.9:1 (8.1:1 on page background) |
+| Heading text | `#7A3F6A` | plum rose, 7.3:1; also for banner text (4.6:1 on the ribbon pink) |
+| Muted text | `#86695C` | 4.8:1 |
+| Accent / legal-cell glow | `#FFE08A` | butter; overlay or modulate on empty tiles |
+| Gold | `#E8AE3C` | coins, held-die rim (fill only; gold text use `#9A6A12`, 4.5:1) |
+| Curse | `#8456C0` | 4.9:1 as text; soft fills `#C9A8EE`, `#B48BE0` |
+| Mistake red | `#B93E4C` | 5.2:1 as text; soft icon fill `#F28A94` |
+| Success green | `#3A7D55` | 4.7:1 as text; soft icon fill `#A9E2B4` |
+| Board frame | `#B9A8C9` | lavender grey between tiles (empty tile edge `#D8CEE5`) |
+| Placed number | `#4F5BB0` | periwinkle indigo, 5.5:1 on empty tile centre `#F6F2FA` (4.5:1 at the tile edge); no outline needed |
+| Given number | `#4A3343` | deep plum, 8.2:1 on given tile centre `#E7D6DF` |
+
+## Legacy palette (v0.9-v0.10)
+Still used by the gem dice and the legacy `pet_*` portraits; everything else moved to the pastel look above.
+
 | Role | Hex | Use |
 |---|---|---|
 | Parchment | `#F1E3C6` | panels, map paper (edges `#D9C39A` / `#C9A874`) |
@@ -16,7 +50,7 @@ Cozy fantasy tavern UI over an inked dungeon map. Cute, round, original animal a
 | OK green | `#4E8A3E` | safe, plus badges |
 | Gems | d4 teal `#1A9A8E`, d6 ruby `#C42A42`, d8 sapphire `#2F5FC4`, d10 amethyst `#8E44AD` |
 
-## Outlines
+## Outlines (legacy v0.9-v0.10; see Pastel look for v0.11)
 - Ink `#3B2A1A`, round joins and caps.
 - Weight about 1/16 of the asset side: 4 px on 64 px icons, 4 px on 128 px dice, 5 px on 256 px portraits, 6-7 px on the 512 px merchant.
 - Map lines stay at 15-25 % opacity so board numbers win.
@@ -44,13 +78,13 @@ Players pick a race and a class; the game stacks `characters/class_<id>.svg` ove
 - Class overlays draw only: outfit body `M96 150 Q128 166 160 150 Q174 186 176 228 Q128 240 80 228 Q82 186 96 150 Z` (covers the torso), sleeves along the arm strokes, headwear, one prop.
   - Headwear sits low between the ears (band at y 56-96, x 70-186) or is a hood with an open face (face hole x 74-182, y 66-158) so it fits tall, round and floppy ears alike. Do not cover the eyes (y 90-122).
   - Props: right hand (178,196) holds staff/sword/dagger/mace; left hand (78,196) holds shield/lute/bow. Keep props inside x 30-230 and y 4-254.
-- Outline 5 px ink. Check new races/classes by compositing all pairs into a contact sheet at 128 px and 256 px.
+- Outline 4 px `#7A5C4A` (v0.11). Check new races/classes by compositing all pairs into a contact sheet at 128 px and 256 px.
 
 ## Effects (v0.10)
 `effects/` holds animation sprites (128x128 unless noted). Glows use radial gradients that fade to opacity 0 at the edge so they can be scaled/tweened in code. Check them on parchment and on ink backgrounds.
 
 ## Do / Don't
-- Do: gradients, simple shapes, clipPath, opacity. Keep files under 25 KB.
+- Do: gradients, simple shapes, clipPath, opacity, stroke-dasharray. Keep files under 20 KB.
 - Do: transparent background except board tiles and the map (opaque).
 - Don't: `<text>`, fonts, raster images, `<style>` blocks, blur filters (Godot/ThorVG import).
 - Don't: imitate existing characters, logos or game art. No lettering in emblems.

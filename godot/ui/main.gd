@@ -2,17 +2,24 @@ extends Control
 ## Dicedoku v0.9 interface: lobby, pass-the-device, game, results. Built in code; plain look until the art pass.
 ## Every action calls the Game rules engine and rebuilds the current screen.
 
-const C_PARCH := Color("#F1E3C6")
-const C_PARCH_DARK := Color("#E2CFA5")
-const C_INK := Color("#3B2A1A")
-const C_WOOD := Color("#6B4426")
-const C_STONE := Color("#8A8580")
-const C_TORCH := Color("#FFB347")
-const C_GLOW := Color("#B86E00")
-const C_CURSE := Color("#8E44AD")
-const C_GOLD := Color("#E2B33C")
-const C_RED := Color("#B5442C")
-const C_OK := Color("#4E8A3E")
+## Pastel palette v0.11 (docs/assets/STYLE.md "Pastel UI palette").
+const C_PARCH := Color("#F8EDE3")       # page background
+const C_PARCH_DARK := Color("#FFF8EF")  # panel fill
+const C_INK := Color("#5A4136")         # body text
+const C_WOOD := Color("#7A3F6A")        # headings
+const C_STONE := Color("#86695C")       # muted text, dead dice
+const C_TORCH := Color("#FFE08A")       # legal-cell glow
+const C_GLOW := Color("#4F5BB0")        # placed numbers
+const C_GIVEN := Color("#4A3343")       # given numbers
+const C_FRAME := Color("#B9A8C9")       # board frame between tiles
+const C_BTN_TEXT := Color("#5A3B2B")
+const C_BORDER := Color("#B88A74")
+const C_DIE_OUTLINE := Color("#3B2A1A") # gem dice keep a dark outline
+const C_CURSE := Color("#8456C0")
+const C_GOLD := Color("#E8AE3C")
+const C_GOLD_TEXT := Color("#9A6A12")
+const C_RED := Color("#B93E4C")
+const C_OK := Color("#3A7D55")
 const DIE_COLORS := {4: Color("#2A9D8F"), 6: Color("#C0392B"), 8: Color("#2E5EAA"), 10: Color("#7D3C98")}
 const KIND_TAGS := {"mirror": " Mirror", "safe": " Safe", "golden": " Gold", "loaded": " Loaded"}
 const SIZES := [4, 9]
@@ -158,15 +165,16 @@ func _make_theme() -> Theme:
 	for c in ["font_color", "font_hover_color", "font_pressed_color", "font_focus_color"]:
 		th.set_color(c, "Button", C_PARCH)
 	th.set_color("font_disabled_color", "Button", C_PARCH.darkened(0.15))
+	th.set_stylebox("normal", "Button", _box(Color("#F7CF94"), 10, C_BORDER, 2))
 	th.set_stylebox("normal", "LineEdit", _box(Color.WHITE, 6, C_WOOD, 2))
 	th.set_color("font_color", "LineEdit", C_INK)
 	th.set_stylebox("normal", "OptionButton", _box(C_WOOD))
 	th.set_stylebox("hover", "OptionButton", _box(C_WOOD.lightened(0.15)))
 	th.set_stylebox("pressed", "OptionButton", _box(C_WOOD.darkened(0.2)))
 	th.set_stylebox("focus", "OptionButton", StyleBoxEmpty.new())
-	th.set_color("font_color", "OptionButton", C_PARCH)
-	th.set_color("font_hover_color", "OptionButton", C_PARCH)
-	th.set_stylebox("panel", "PanelContainer", _box(C_PARCH_DARK, 12, C_WOOD, 2))
+	th.set_color("font_color", "OptionButton", C_BTN_TEXT)
+	th.set_color("font_hover_color", "OptionButton", C_BTN_TEXT)
+	th.set_stylebox("panel", "PanelContainer", _box(C_PARCH_DARK, 12, C_BORDER, 2))
 	th.set_constant("icon_max_width", "OptionButton", 32)
 	th.set_constant("icon_max_width", "PopupMenu", 32)
 	var parch := tbox("ui/parchment_panel.svg", 32, 22)
@@ -178,10 +186,13 @@ func _make_theme() -> Theme:
 		th.set_stylebox("hover", "Button", tbox("ui/wood_bar.svg", 22, 18, Color(1.15, 1.1, 1.0)))
 		th.set_stylebox("pressed", "Button", tbox("ui/wood_bar.svg", 22, 18, Color(0.8, 0.75, 0.7)))
 		th.set_stylebox("disabled", "Button", tbox("ui/wood_bar.svg", 22, 18, Color(0.75, 0.75, 0.75, 0.55)))
-		for c in ["font_color", "font_hover_color", "font_pressed_color", "font_focus_color", "font_disabled_color"]:
-			th.set_color(c, "Button", C_PARCH)
-		th.set_color("font_outline_color", "Button", C_INK)
-		th.set_constant("outline_size", "Button", 4)
+		for c in ["font_color", "font_hover_color", "font_pressed_color", "font_focus_color"]:
+			th.set_color(c, "Button", C_BTN_TEXT)
+		th.set_color("font_disabled_color", "Button", C_BTN_TEXT.lightened(0.35))
+		th.set_constant("outline_size", "Button", 0)
+		th.set_stylebox("normal", "OptionButton", wood)
+		th.set_stylebox("hover", "OptionButton", tbox("ui/wood_bar.svg", 22, 18, Color(1.08, 1.05, 1.0)))
+		th.set_stylebox("pressed", "OptionButton", tbox("ui/wood_bar.svg", 22, 18, Color(0.9, 0.86, 0.82)))
 	return th
 
 ## Loads an asset if present (missing art falls back to the plain look).
@@ -312,7 +323,7 @@ func show_lobby() -> void:
 		title.add_child(img("ui/logo_dice.svg", 96))
 	title.add_child(lbl("Dicedoku", 52, C_WOOD))
 	body.add_child(title)
-	body.add_child(lbl("v0.11-dev", 18, C_STONE))
+	body.add_child(lbl("v0.11-dev · cozy edition", 18, C_STONE))
 	var v := panel("New game")
 	var r := row()
 	r.add_child(lbl("Mode"))
@@ -577,7 +588,7 @@ func _board(p: PlayerState) -> void:
 		svs = [10] if game.is_wild(p, sel) else game.die_values(p, sel)
 	var frame := PanelContainer.new()
 	var fsb := StyleBoxFlat.new()
-	fsb.bg_color = C_INK
+	fsb.bg_color = C_FRAME
 	fsb.set_corner_radius_all(6)
 	fsb.content_margin_left = thick
 	fsb.content_margin_right = thick
@@ -637,9 +648,9 @@ func _cell(p: PlayerState, i: int, px: int, svs: Array) -> Button:
 	for st in ["normal", "hover", "pressed", "disabled"]:
 		b.add_theme_stylebox_override(st, sb)
 	b.add_theme_stylebox_override("focus", StyleBoxEmpty.new())
-	b.add_theme_color_override("font_outline_color", C_INK if not given else Color(0, 0, 0, 0))
-	b.add_theme_constant_override("outline_size", 0 if given else 5)
-	var fc := C_PARCH if given else C_TORCH
+	b.add_theme_color_override("font_outline_color", Color(0, 0, 0, 0))
+	b.add_theme_constant_override("outline_size", 0)
+	var fc := C_GIVEN if given else C_GLOW
 	for st in ["font_color", "font_hover_color", "font_pressed_color"]:
 		b.add_theme_color_override(st, fc)
 	b.add_theme_font_size_override("font_size", int(px * 0.55) if memo_txt == "" else maxi(11, int(px * 0.2)))
@@ -698,7 +709,7 @@ func _dice(p: PlayerState) -> void:
 		style_die_number(b, sb, f)
 		for c in ["font_color", "font_hover_color", "font_pressed_color"]:
 			b.add_theme_color_override(c, Color.WHITE)
-		b.add_theme_color_override("font_outline_color", C_INK)
+		b.add_theme_color_override("font_outline_color", C_DIE_OUTLINE)
 		b.add_theme_constant_override("outline_size", 6)
 		if i < p.du.size() and p.du[i]:
 			b.modulate = Color(1, 1, 1, 0.3)
@@ -1016,7 +1027,7 @@ func _paint_die(b: Button, f: int, scale_k: float = 1.0) -> void:
 	b.add_theme_stylebox_override("focus", StyleBoxEmpty.new())
 	for c in ["font_color", "font_hover_color", "font_pressed_color"]:
 		b.add_theme_color_override(c, Color.WHITE)
-	b.add_theme_color_override("font_outline_color", C_INK)
+	b.add_theme_color_override("font_outline_color", C_DIE_OUTLINE)
 	b.add_theme_constant_override("outline_size", int(6 * scale_k))
 	style_die_number(b, sb, f)
 	if scale_k != 1.0:
@@ -1101,8 +1112,8 @@ func float_text(text: String, at: Vector2, color: Color, fsize: int = 28) -> voi
 	l.text = text
 	l.add_theme_font_size_override("font_size", fsize)
 	l.add_theme_color_override("font_color", color)
-	l.add_theme_color_override("font_outline_color", C_INK)
-	l.add_theme_constant_override("outline_size", 8)
+	l.add_theme_color_override("font_outline_color", Color("#FFF8EF"))
+	l.add_theme_constant_override("outline_size", 10)
 	l.horizontal_alignment = HORIZONTAL_ALIGNMENT_CENTER
 	l.size = Vector2(420, fsize * 1.6)
 	l.position = at - l.size / 2
@@ -1224,8 +1235,8 @@ func announce_turn() -> void:
 	l.horizontal_alignment = HORIZONTAL_ALIGNMENT_CENTER
 	l.vertical_alignment = VERTICAL_ALIGNMENT_CENTER
 	l.add_theme_font_size_override("font_size", 34)
-	l.add_theme_color_override("font_color", C_PARCH)
-	l.add_theme_color_override("font_outline_color", C_INK)
+	l.add_theme_color_override("font_color", C_WOOD)
+	l.add_theme_color_override("font_outline_color", Color("#FFF8EF"))
 	l.add_theme_constant_override("outline_size", 8)
 	box.add_child(l)
 	fx_layer.add_child(box)
@@ -1262,7 +1273,7 @@ func play_fx(list: Array) -> void:
 			"gold":
 				sfx("coin")
 				var at := _center(_node("gold_info"))
-				float_text("+%d gold (%s)" % [int(e["n"]), str(e.get("why", ""))], at, C_GOLD, 26)
+				float_text("+%d gold (%s)" % [int(e["n"]), str(e.get("why", ""))], at, C_GOLD_TEXT, 26)
 				burst("effects/coin_pop.svg", at + Vector2(-140, 0), 56)
 			"hit":
 				sfx("hit")
@@ -1271,7 +1282,7 @@ func play_fx(list: Array) -> void:
 				var at2 := _center(c)
 				burst("effects/hit_glow.svg", at2, 150, Color(1, 1, 1, 0.9))
 				sparkles(at2, 4, 34)
-				float_text("+%d gold" % int(e.get("gold", 1)), at2 - Vector2(0, 30), C_GOLD, 28)
+				float_text("+%d gold" % int(e.get("gold", 1)), at2 - Vector2(0, 30), C_GOLD_TEXT, 28)
 			"miss":
 				sfx("miss")
 				var c2 := _node("cell_%d" % int(e["c"]))
@@ -1311,11 +1322,11 @@ func play_fx(list: Array) -> void:
 			"combo":
 				sfx("win")
 				sparkles(mid, 10, 160)
-				float_text("Combo! +%d hint%s" % [int(e["n"]), "s" if int(e["n"]) > 1 else ""], mid, C_GOLD, 44)
+				float_text("Combo! +%d hint%s" % [int(e["n"]), "s" if int(e["n"]) > 1 else ""], mid, C_GOLD_TEXT, 44)
 			"win":
 				sfx("win")
 				sparkles(mid, 26, 260)
-				float_text("Dungeon cleared!", mid, C_GOLD, 56)
+				float_text("Dungeon cleared!", mid, C_GOLD_TEXT, 56)
 			"out":
 				sfx("miss")
 				screen_flash(Color(C_RED, 0.35))

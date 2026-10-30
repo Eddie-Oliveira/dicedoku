@@ -35,6 +35,30 @@ Closes: Online rooms, bots, art in the UI, stable/dev links (DOCS part); Godot p
 - Tests: n/a
 - Needs: DESIGN: confirm GDD wording of useless/dead faces and shop-once-per-turn. CODE: stale comment in game.gd header ("online replay later"); check results order text matches UI.
 
+### [2026-10-30] v0.11-dev · Difficulty levels, fair boards, slide-up tabs, dice tuner, pastel UI
+areas: CODE | DESIGN
+agent: lead (code role)
+- Modes: Blitz 4x4, or 9x9 Cozy (42 shown, boost), Adventurer (36, even), Hero (32, even), Legend (28, even). 6x6 removed from the lobby (engine still supports it). Room cfg carries givens + quota mode.
+- Generator: `Puzzle.generate(n, seed, givens, mode)`; "even" spreads givens over digits (extras to the highest), "boost" adds 9s/8s. Legacy path unchanged (web parity tests still pass).
+- Fairness fix: per-seat relabel only swaps digits with the same dice class and given count (v0.10 seats differed by ~3 given 9s). Small grids retry until every seat's board differs.
+- Balance study (`tests/sim_balance.gd`, workflow `balance.yml`): results and decision in docs/design/balance-9x9.md.
+- Shop and party moved to a bottom tab bar with slide-up drawers (mobile space). Toasts sit above the bar.
+- Dice number tuner (lobby): per die type x/y/size sliders, saved on the device, "Copy code" for Claudio to bake in (`DIE_TUNE_DEFAULT`).
+- Pastel palette from docs/assets/STYLE.md applied (text, buttons, board frame, placed/given numbers, glow, ribbon, floating text); gem dice keep a dark number outline.
+- Files: godot/core/{puzzle,game}.gd, godot/net/online.gd, godot/ui/main.gd, godot/tests/*, .github/workflows/balance.yml, docs/design/balance-9x9.md
+- Tests: CI 44 tests, 0 failures before the palette commit (see run for this one); balance run 41096371000.
+- Needs: DESIGN: Eddie sends the dice tuner code; playtest levels. ASSETS: legacy pet_* portraits can be retired.
+
+### [2026-10-30] v0.11-dev · Pastel cozy restyle of all art (except gem dice)
+areas: ASSETS
+agent: assets
+- Playtest request: whole look moved to cozy, cute pastel (peach, mint, lavender, baby blue, butter, blush) with soft brown #7A5C4A outlines, glossy eyes, blush, fur tufts, sparkles/hearts and a sticker feel. Original designs (reference image used only for mood).
+- Restyled with same names, sizes and viewBox: 6 race + 6 class layers (template coords unchanged, 36 pairs re-checked), Rook, map, both tiles, panel, button bar, logo, 16 icons, 8 effects. Gem dice and legacy pet_* untouched.
+- STYLE.md: "Pastel look (v0.11)" rules + "Pastel UI palette (v0.11)" hex table (all text colours >= 4.5:1 on panel); ASSETS.md updated, icons/quill.svg row added.
+- Files: godot/assets/{characters,board,ui,icons,effects}/*.svg (except pet_*), docs/assets/STYLE.md, docs/assets/ASSETS.md
+- Tests: all rendered with sharp; contact sheets reviewed (races, 36 pairs at 256/128/64, Rook, map, tiles with numbers, panel/button 9-sliced, icons on page/panel/dark); XML, size, viewBox, forbidden-element and <20 KB checks pass for all 51 SVGs.
+- Needs: none (palette applied by the code role in the same release).
+
 ### [2026-10-30] v0.10 · Released to stable
 areas: DOCS | CODE
 agent: lead
