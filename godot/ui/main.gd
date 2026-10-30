@@ -16,6 +16,8 @@ const C_OK := Color("#4E8A3E")
 const DIE_COLORS := {4: Color("#2A9D8F"), 6: Color("#C0392B"), 8: Color("#2E5EAA"), 10: Color("#7D3C98")}
 const KIND_TAGS := {"mirror": " Mirror", "safe": " Safe", "golden": " Gold", "loaded": " Loaded"}
 const SIZES := [4, 6, 9]
+const A := "res://assets/"
+var _tex_cache := {}
 
 var game: Game
 var screen := "lobby"
@@ -46,6 +48,15 @@ func build() -> void:
 	bg.color = C_PARCH
 	bg.set_anchors_preset(Control.PRESET_FULL_RECT)
 	add_child(bg)
+	if tex("board/dungeon_map.svg") != null:
+		var map := TextureRect.new()
+		map.texture = tex("board/dungeon_map.svg")
+		map.expand_mode = TextureRect.EXPAND_IGNORE_SIZE
+		map.stretch_mode = TextureRect.STRETCH_KEEP_ASPECT_COVERED
+		map.set_anchors_preset(Control.PRESET_FULL_RECT)
+		map.modulate = Color(1, 1, 1, 0.6)
+		map.mouse_filter = Control.MOUSE_FILTER_IGNORE
+		bg.add_child(map)
 	var scroll := ScrollContainer.new()
 	scroll.set_anchors_preset(Control.PRESET_FULL_RECT)
 	scroll.horizontal_scroll_mode = ScrollContainer.SCROLL_MODE_DISABLED
@@ -123,7 +134,67 @@ func _make_theme() -> Theme:
 	th.set_color("font_color", "OptionButton", C_PARCH)
 	th.set_color("font_hover_color", "OptionButton", C_PARCH)
 	th.set_stylebox("panel", "PanelContainer", _box(C_PARCH_DARK, 12, C_WOOD, 2))
+	th.set_constant("icon_max_width", "OptionButton", 32)
+	th.set_constant("icon_max_width", "PopupMenu", 32)
+	var parch := tbox("ui/parchment_panel.svg", 32, 22)
+	if parch != null:
+		th.set_stylebox("panel", "PanelContainer", parch)
+	var wood := tbox("ui/wood_bar.svg", 22, 18)
+	if wood != null:
+		th.set_stylebox("normal", "Button", wood)
+		th.set_stylebox("hover", "Button", tbox("ui/wood_bar.svg", 22, 18, Color(1.15, 1.1, 1.0)))
+		th.set_stylebox("pressed", "Button", tbox("ui/wood_bar.svg", 22, 18, Color(0.8, 0.75, 0.7)))
+		th.set_stylebox("disabled", "Button", tbox("ui/wood_bar.svg", 22, 18, Color(0.75, 0.75, 0.75, 0.55)))
+		for c in ["font_color", "font_hover_color", "font_pressed_color", "font_focus_color", "font_disabled_color"]:
+			th.set_color(c, "Button", C_PARCH)
+		th.set_color("font_outline_color", "Button", C_INK)
+		th.set_constant("outline_size", "Button", 4)
 	return th
+
+## Loads an asset if present (missing art falls back to the plain look).
+func tex(rel: String) -> Texture2D:
+	if not _tex_cache.has(rel):
+		var path := A + rel
+		_tex_cache[rel] = load(path) if ResourceLoader.exists(path) else null
+	return _tex_cache[rel]
+
+func tbox(rel: String, margin: int, content: int, mod: Color = Color.WHITE) -> StyleBoxTexture:
+	var t := tex(rel)
+	if t == null:
+		return null
+	var sb := StyleBoxTexture.new()
+	sb.texture = t
+	sb.texture_margin_left = margin
+	sb.texture_margin_right = margin
+	sb.texture_margin_top = margin
+	sb.texture_margin_bottom = margin
+	sb.content_margin_left = content
+	sb.content_margin_right = content
+	sb.content_margin_top = content * 0.6
+	sb.content_margin_bottom = content * 0.6
+	sb.modulate_color = mod
+	return sb
+
+func portrait(pet: String, px: int) -> Control:
+	var t := tex("characters/pet_%s.svg" % pet)
+	if t == null:
+		var l := lbl("", 1)
+		l.custom_minimum_size = Vector2(1, 1)
+		return l
+	var r := TextureRect.new()
+	r.texture = t
+	r.expand_mode = TextureRect.EXPAND_IGNORE_SIZE
+	r.stretch_mode = TextureRect.STRETCH_KEEP_ASPECT_CENTERED
+	r.custom_minimum_size = Vector2(px, px)
+	return r
+
+func img(rel: String, px: int) -> TextureRect:
+	var r := TextureRect.new()
+	r.texture = tex(rel)
+	r.expand_mode = TextureRect.EXPAND_IGNORE_SIZE
+	r.stretch_mode = TextureRect.STRETCH_KEEP_ASPECT_CENTERED
+	r.custom_minimum_size = Vector2(px, px)
+	return r
 
 func clear() -> void:
 	for c in body.get_children():
@@ -177,7 +248,11 @@ func show_lobby() -> void:
 	screen = "lobby"
 	game = null
 	clear()
-	body.add_child(lbl("Dicedoku", 48, C_WOOD))
+	var title := row()
+	if tex("ui/logo_dice.svg") != null:
+		title.add_child(img("ui/logo_dice.svg", 96))
+	title.add_child(lbl("Dicedoku", 52, C_WOOD))
+	body.add_child(title)
 	body.add_child(lbl("v0.10-dev - next version in progress", 18, C_STONE))
 	var v := panel("New game")
 	var r := row()
@@ -200,6 +275,7 @@ func show_lobby() -> void:
 	v.add_child(r2)
 	for i in lobby["count"]:
 		var pr := row()
+		pr.add_child(portrait(Rules.PETS[lobby["pets"][i]], 48))
 		var le := LineEdit.new()
 		le.text = lobby["names"][i]
 		le.max_length = 12
@@ -208,9 +284,13 @@ func show_lobby() -> void:
 		pr.add_child(le)
 		var op := OptionButton.new()
 		for pet in Rules.PETS:
-			op.add_item(pet_name(pet))
+			var pt := tex("characters/pet_%s.svg" % pet)
+			if pt != null:
+				op.add_icon_item(pt, pet_name(pet))
+			else:
+				op.add_item(pet_name(pet))
 		op.select(lobby["pets"][i])
-		op.item_selected.connect(func(ix: int) -> void: lobby["pets"][i] = ix)
+		op.item_selected.connect(_on_pet.bind(i))
 		pr.add_child(op)
 		var ot := OptionButton.new()
 		for st in SEAT_TYPES:
@@ -222,6 +302,10 @@ func show_lobby() -> void:
 	v.add_child(btn("Start adventure", start_from_lobby))
 	var h := panel("How to play")
 	h.add_child(lbl("Take turns on one device. On your turn roll your dice up to 3 times (tap dice to hold them), then lock. Tap a die, then a cell: it only counts if that number belongs there. 3 mistakes and you are out. Earn gold and shop at Rook's: whetstones (d4 > d6 > d8 > d10), extra dice with powers, and curses for your rivals. A d10 shows 0-9 and its 0 is wild. Lowest turns + 2 x mistakes wins.", 18))
+
+func _on_pet(ix: int, seat: int) -> void:
+	lobby["pets"][seat] = ix
+	show_lobby()
 
 func _on_count(ix: int) -> void:
 	lobby["count"] = ix + 1
@@ -314,6 +398,9 @@ func show_pass() -> void:
 	clear()
 	var p := game.current()
 	body.add_child(lbl("Pass the device to", 26, C_STONE))
+	var pc := CenterContainer.new()
+	pc.add_child(portrait(p.pet, 220))
+	body.add_child(pc)
 	body.add_child(lbl(p.name, 52, C_WOOD))
 	body.add_child(lbl("the " + pet_name(p.pet), 26))
 	if not p.pending.is_empty():
@@ -332,7 +419,10 @@ func show_game() -> void:
 	var who := "%s the %s  -  turn %d" % [p.name, pet_name(p.pet), p.turn]
 	if p.bot != "":
 		who += "  (bot, %s)" % p.bot
-	body.add_child(lbl(who, 28, C_WOOD))
+	var banner := row()
+	banner.add_child(portrait(p.pet, 64))
+	banner.add_child(lbl(who, 28, C_WOOD))
+	body.add_child(banner)
 	if not p.pending.is_empty() and not p.fxd:
 		body.add_child(lbl("A curse will hit your first roll!", 20, C_CURSE))
 	_board(p)
@@ -399,12 +489,20 @@ func _cell(p: PlayerState, i: int, px: int, sv: int) -> Button:
 	var bgc := C_STONE.darkened(0.15) if given else C_STONE.lightened(0.55)
 	if v == 0 and sv > 0 and game.legal(p, i, sv):
 		bgc = C_TORCH.lightened(0.25)
-	var sb := StyleBoxFlat.new()
+	var sb: StyleBox = StyleBoxFlat.new()
 	sb.bg_color = bgc
+	var tile := tbox("board/stone_tile_given.svg" if given else "board/stone_tile.svg", 0, 0)
+	if tile != null:
+		tile.content_margin_top = 0
+		tile.content_margin_bottom = 0
+		tile.modulate_color = C_TORCH.lightened(0.35) if bgc == C_TORCH.lightened(0.25) else Color.WHITE
+		sb = tile
 	for st in ["normal", "hover", "pressed", "disabled"]:
 		b.add_theme_stylebox_override(st, sb)
 	b.add_theme_stylebox_override("focus", StyleBoxEmpty.new())
-	var fc := C_PARCH if given else C_GLOW
+	b.add_theme_color_override("font_outline_color", C_INK if not given else Color(0, 0, 0, 0))
+	b.add_theme_constant_override("outline_size", 0 if given else 5)
+	var fc := C_PARCH if given else C_TORCH
 	for st in ["font_color", "font_hover_color", "font_pressed_color"]:
 		b.add_theme_color_override(st, fc)
 	b.add_theme_font_size_override("font_size", int(px * 0.55))
@@ -429,7 +527,7 @@ func _dice(p: PlayerState) -> void:
 		var f: int = p.df[i]
 		var val: int = p.dv[i] if i < p.dv.size() else 0
 		var b := Button.new()
-		b.custom_minimum_size = Vector2(84, 96)
+		b.custom_minimum_size = Vector2(92, 92)
 		var tag: String = KIND_TAGS.get(p.dk[i], "")
 		var extra := ""
 		if val > 0 and game.is_wild(p, i):
@@ -448,14 +546,33 @@ func _dice(p: PlayerState) -> void:
 		if i == sel:
 			border = C_OK
 			bw = 6
-		var sb := _box(col, 12, border, bw)
+		var sb: StyleBox = _box(col, 12, border, bw)
+		var gem := tbox("dice/gem_d%d.svg" % f, 0, 0, Color(0.55, 0.55, 0.55) if col == C_STONE else Color.WHITE)
+		if gem != null:
+			gem.content_margin_top = 10
+			sb = gem
 		for st in ["normal", "hover", "pressed", "disabled"]:
 			b.add_theme_stylebox_override(st, sb)
-		b.add_theme_font_size_override("font_size", 24)
+		b.add_theme_stylebox_override("focus", StyleBoxEmpty.new())
+		b.add_theme_font_size_override("font_size", 22)
+		for c in ["font_color", "font_hover_color", "font_pressed_color"]:
+			b.add_theme_color_override(c, Color.WHITE)
+		b.add_theme_color_override("font_outline_color", C_INK)
+		b.add_theme_constant_override("outline_size", 6)
 		if i < p.du.size() and p.du[i]:
 			b.modulate = Color(1, 1, 1, 0.3)
 		b.pressed.connect(_on_die.bind(i))
-		flow.add_child(b)
+		# ring shows held (gold) and selected (green)
+		var ring := PanelContainer.new()
+		var rs := StyleBoxFlat.new()
+		rs.bg_color = Color(0, 0, 0, 0)
+		rs.border_color = border if bw > 2 else Color(0, 0, 0, 0)
+		rs.set_border_width_all(4)
+		rs.set_corner_radius_all(14)
+		rs.set_content_margin_all(3)
+		ring.add_theme_stylebox_override("panel", rs)
+		ring.add_child(b)
+		flow.add_child(ring)
 	v.add_child(flow)
 	v.add_child(lbl(_phase(p), 20, C_WOOD))
 	var info := "Rolls left %d  ·  Mistakes %d/%d  ·  Hints %d  ·  Gold %d" % [p.rolls, p.mis, Rules.MAXMIS, p.hints, p.gold]
@@ -474,7 +591,16 @@ func _dice(p: PlayerState) -> void:
 	v.add_child(r)
 
 func _shop(p: PlayerState) -> void:
-	var v := panel("Rook the Raccoon's shop")
+	var v := panel("")
+	var head := row()
+	if tex("characters/merchant_raccoon.svg") != null:
+		head.add_child(img("characters/merchant_raccoon.svg", 96))
+	var hv := VBoxContainer.new()
+	hv.size_flags_horizontal = Control.SIZE_EXPAND_FILL
+	hv.add_child(lbl("Rook the Raccoon's shop", 26, C_WOOD))
+	hv.add_child(lbl("\"Shiny dice, fresh curses, fair-ish prices!\"", 16, C_STONE))
+	head.add_child(hv)
+	v.add_child(head)
 	var rv := game.rivals()
 	var offers := game.offers()
 	var has_curse := false
@@ -502,6 +628,8 @@ func _shop(p: PlayerState) -> void:
 		if o.has("x") and rv.size() == 1:
 			text += " (to %s)" % game.players[rv[0]].name
 		var col := C_CURSE if (o.has("x") or o["id"] == "ward") else C_INK
+		if tex("icons/%s.svg" % o.get("icon", "")) != null:
+			r.add_child(img("icons/%s.svg" % o["icon"], 40))
 		r.add_child(lbl(text, 18, col))
 		var off: bool = p.gold < o["c"] or sold or (o["id"] == "roll" and p.lk) or (o.has("x") and rv.is_empty())
 		var label := "Sold" if sold else "%dg" % o["c"]
@@ -525,7 +653,10 @@ func _players() -> void:
 			s += "  ·  out"
 		if not q.pending.is_empty():
 			s += "  ·  %d curse(s) waiting" % q.pending.size()
-		v.add_child(lbl(s, 18, C_CURSE if not q.pending.is_empty() else C_INK))
+		var pr := row()
+		pr.add_child(portrait(q.pet, 44))
+		pr.add_child(lbl(s, 18, C_CURSE if not q.pending.is_empty() else C_INK))
+		v.add_child(pr)
 
 # ---------- results ----------
 
@@ -542,7 +673,10 @@ func show_results() -> void:
 			s += "  -  score %d (%d turns, %d mistakes)" % [q.score(), q.turn, q.mis]
 		elif q.lost:
 			s += "  -  out after 3 mistakes"
-		v.add_child(lbl(s, 22))
+		var rr := row()
+		rr.add_child(portrait(q.pet, 56))
+		rr.add_child(lbl(s, 22))
+		v.add_child(rr)
 		place += 1
 	body.add_child(btn("New game", show_lobby))
 
