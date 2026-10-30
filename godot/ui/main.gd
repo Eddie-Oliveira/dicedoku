@@ -166,7 +166,7 @@ func _box(bg: Color, radius: int = 8, border: Color = C_INK, bw: int = 0) -> Sty
 
 ## Default font with a Chinese fallback (a subset of Noto Sans SC built by the fonts workflow).
 func _font() -> Font:
-	var path := "res://assets/fonts/NotoSansSC-subset.otf"
+	var path := "res://assets/fonts/NotoSansSC-subset.ttf"
 	if not ResourceLoader.exists(path):
 		return null
 	var base: Font = ThemeDB.fallback_font.duplicate()

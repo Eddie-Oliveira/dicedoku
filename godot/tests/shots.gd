@@ -54,6 +54,23 @@ func _run() -> void:
 	root.size = Vector2i(720, 1280)
 	ui.show_tuner()
 	await snap("09_tuner")
+	# every language on the home screen, and a game screen + tutorial in Chinese (checks the CJK font)
+	for c in Lang.LANGS:
+		Lang.set_lang(c)
+		ui.show_lobby()
+		await snap("10_lobby_%s" % c)
+	Lang.set_lang("zh_CN")
+	ui.start_tutorial()
+	ui._on_tut_next()
+	ui._on_roll()
+	await snap("11_tutorial_zh_CN")
+	Lang.set_lang("pt_BR")
+	ui.show_game()
+	await snap("12_tutorial_pt_BR")
+	ui.tut = -1
+	Lang.set_lang("en")
+	ui.game = g
+	ui.show_game()
 	ui.show_game()
 	g.over = true
 	g.players[0].done = true

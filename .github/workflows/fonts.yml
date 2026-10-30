@@ -1,0 +1,46 @@
+name: fonts
+# Builds a small Simplified Chinese font for the game: Noto Sans SC (SIL Open Font License),
+# instanced at weight 500 and subset to the characters used in godot/i18n/zh_CN.json + Latin.
+on:
+  workflow_dispatch:
+  push:
+    branches: [main]
+    paths: ["godot/i18n/zh_CN.json"]
+permissions:
+  contents: write
+jobs:
+  subset:
+    runs-on: ubuntu-latest
+    timeout-minutes: 15
+    steps:
+      - uses: actions/checkout@v4
+      - name: Tools
+        run: pip install --quiet fonttools brotli
+      - name: Download Noto Sans SC
+        run: |
+          curl -fsSL -o NotoSansSC.ttf "https://github.com/google/fonts/raw/main/ofl/notosanssc/NotoSansSC%5Bwght%5D.ttf"
+          curl -fsSL -o OFL.txt "https://github.com/google/fonts/raw/main/ofl/notosanssc/OFL.txt"
+      - name: Subset
+        run: |
+          python3 - <<'PY'
+          import json
+          from fontTools.ttLib import TTFont
+          from fontTools.varLib import instancer
+          from fontTools import subset
+          zh = json.load(open("godot/i18n/zh_CN.json", encoding="utf-8"))
+          chars = set("".join(zh.values()))
+          chars |= {chr(c) for c in range(32, 127)} | set("·—–…“”‘’！？，。：；（）《》、")
+          f = instancer.instantiateVariableFont(TTFont("NotoSansSC.ttf"), {"wght": 500})
+          opts = subset.Options(); opts.layout_features = ["*"]; opts.name_IDs = ["*"]; opts.notdef_outline = True
+          s = subset.Subsetter(opts); s.populate(text="".join(sorted(chars))); s.subset(f)
+          f.save("godot/assets/fonts/NotoSansSC-subset.ttf")
+          print(len(chars), "characters")
+          PY
+          cp OFL.txt godot/assets/fonts/OFL-NotoSansSC.txt
+          ls -la godot/assets/fonts
+      - name: Commit the font
+        run: |
+          git config user.name "fonts-bot"
+          git config user.email "fonts-bot@users.noreply.github.com"
+          git add godot/assets/fonts
+          git diff --cached --quiet && echo "no change" || (git commit -m "fonts: rebuild Noto Sans SC subset for zh_CN" && git push)
