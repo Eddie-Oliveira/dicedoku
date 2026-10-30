@@ -179,7 +179,7 @@ func test_modes_drawer_tuner(t) -> void:
 	ui._on_tune_reset()
 	t.check(ui.tune_for(6) == [1, 0, 39] and ui.tune_code() == "d4=0,6,40;d6=1,0,39;d8=0,0,40;d10=0,-3,40", "reset to Eddie's tuned defaults")
 	ui.show_lobby()
-	t.check(not ui.tabbar.visible, "tabs hidden outside the game")
+	t.check(ui.find_child("tab_shop", true, false) == null and ui.find_child("tab_howto", true, false) != null, "lobby shows only the How to play tab")
 	ui.queue_free()
 
 func test_lobby_howto_tab_and_tiles(t) -> void:
