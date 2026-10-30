@@ -343,17 +343,12 @@ func _board(p: PlayerState) -> void:
 	body.add_child(cc)
 
 func _tracker(p: PlayerState) -> void:
-	var cc := CenterContainer.new()
-	var r := row()
+	var parts := []
 	for k in range(1, game.size + 1):
-		var full := game.count_value(p, k) == game.size
-		var l := lbl(str(k), 22, C_STONE.lightened(0.2) if full else C_INK)
-		l.size_flags_horizontal = Control.SIZE_SHRINK_CENTER
-		if full:
-			l.text = "(%d)" % k
-		r.add_child(l)
-	cc.add_child(r)
-	body.add_child(cc)
+		parts.append("[%d]" % k if game.count_value(p, k) == game.size else str(k))
+	var l := lbl("Numbers:  " + "   ".join(PackedStringArray(parts)) + "    ([n] = complete)", 20)
+	l.horizontal_alignment = HORIZONTAL_ALIGNMENT_CENTER
+	body.add_child(l)
 
 func _dice(p: PlayerState) -> void:
 	var v := panel("")
@@ -365,7 +360,7 @@ func _dice(p: PlayerState) -> void:
 		var f: int = p.df[i]
 		var val: int = p.dv[i] if i < p.dv.size() else 0
 		var b := Button.new()
-		b.custom_minimum_size = Vector2(76, 88)
+		b.custom_minimum_size = Vector2(84, 96)
 		var tag: String = KIND_TAGS.get(p.dk[i], "")
 		var extra := ""
 		if val > 0 and game.is_wild(p, i):
@@ -387,7 +382,7 @@ func _dice(p: PlayerState) -> void:
 		var sb := _box(col, 12, border, bw)
 		for st in ["normal", "hover", "pressed", "disabled"]:
 			b.add_theme_stylebox_override(st, sb)
-		b.add_theme_font_size_override("font_size", 20)
+		b.add_theme_font_size_override("font_size", 24)
 		if i < p.du.size() and p.du[i]:
 			b.modulate = Color(1, 1, 1, 0.3)
 		b.pressed.connect(_on_die.bind(i))
